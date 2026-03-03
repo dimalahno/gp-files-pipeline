@@ -1,0 +1,70 @@
+from __future__ import annotations
+
+from datetime import datetime, timedelta
+
+from sqlalchemy import and_, func, or_, select
+from sqlalchemy.orm import Session
+
+from app.config import Settings
+from app.db.models import UploadPlanItem, UploadStatus
+
+
+class UploadPlanItemRepository:
+    def __init__(self, settings: Settings):
+        self.settings = settings
+
+    def lock_batch_for_convert(self, session: Session) -> list[UploadPlanItem]:
+        stmt = (
+            select(UploadPlanItem)
+            .where(
+                and_(
+                    UploadPlanItem.status == UploadStatus.UPLOADED,
+                    UploadPlanItem.convert_attempt_count < self.settings.max_convert_attempts,
+                    or_(
+                        UploadPlanItem.next_retry_at.is_(None),
+                        UploadPlanItem.next_retry_at < func.now(),
+                    ),
+                )
+            )
+            .order_by(UploadPlanItem.id.asc())
+            .limit(self.settings.dispatcher_batch_size)
+            .with_for_update(skip_locked=True)
+        )
+        items = list(session.scalars(stmt))
+
+        for item in items:
+            item.status = UploadStatus.CONVERTING
+            item.convert_error = None
+
+        return items
+
+    def mark_converted(
+        self,
+        item: UploadPlanItem,
+        text_s3_path: str,
+        text_size: int,
+        page_count: int,
+        has_ocr: bool,
+    ) -> None:
+        item.status = UploadStatus.CONVERTED
+        item.text_s3_path = text_s3_path
+        item.text_size = text_size
+        item.page_count = page_count
+        item.has_ocr = has_ocr
+        item.text_extracted = True
+        item.convert_error = None
+        item.convert_attempt_count += 1
+        item.next_retry_at = None
+        item.version += 1
+
+    def mark_convert_error(self, item: UploadPlanItem, error_text: str) -> None:
+        item.convert_attempt_count += 1
+        item.convert_error = error_text
+        item.status = UploadStatus.ERROR
+        item.version += 1
+
+        if item.convert_attempt_count < self.settings.max_convert_attempts:
+            backoff_seconds = 2 ** min(item.convert_attempt_count, 8)
+            item.next_retry_at = datetime.utcnow() + timedelta(seconds=backoff_seconds)
+        else:
+            item.next_retry_at = None
