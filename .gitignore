@@ -20,12 +20,16 @@ wheels/
 .installed.cfg
 *.egg
 
+*.pyc
+
+
 # Virtual Environment
 venv/
 env/
 ENV/
 #app/.env
 .venv
+.venv/
 
 # IDE
 .idea/
