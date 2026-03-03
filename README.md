@@ -1,4 +1,5 @@
 # Сервис расчёта наказаний
+Python version: 3.11
 
 ## Описание сервиса
 - **name:** gp-files-pipeline
