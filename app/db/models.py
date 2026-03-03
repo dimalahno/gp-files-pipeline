@@ -7,10 +7,14 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Base(DeclarativeBase):
+    """Базовый декларативный класс SQLAlchemy для ORM-моделей приложения."""
+
     pass
 
 
 class UploadStatus(str, enum.Enum):
+    """Перечень статусов обработки файла в конвейере конвертации."""
+
     CREATED = "CREATED"
     DOWNLOADING = "DOWNLOADING"
     UPLOADED = "UPLOADED"
@@ -21,6 +25,8 @@ class UploadStatus(str, enum.Enum):
 
 
 class UploadPlanItem(Base):
+    """ORM-модель элемента плана загрузки/конвертации файлов."""
+
     __tablename__ = "upload_plan_item"
     __table_args__ = {"schema": "files_storage"}
 

@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Инициализирует зависимости приложения и управляет жизненным циклом диспетчера."""
     app_settings = get_settings()
     session_factory = build_session_factory(app_settings)
 

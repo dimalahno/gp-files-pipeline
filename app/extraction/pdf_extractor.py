@@ -10,11 +10,15 @@ from app.extraction.ocr_service import OcrService
 
 
 class PdfExtractor:
+    """Извлекает текст из PDF сначала напрямую, при нехватке текста — через OCR."""
+
     def __init__(self, settings: Settings, ocr_service: OcrService):
+        """Сохраняет настройки порога качества текста и OCR-сервис."""
         self.settings = settings
         self.ocr_service = ocr_service
 
     def extract(self, raw_file: bytes) -> tuple[str, int, bool]:
+        """Возвращает текст PDF, количество страниц и признак использования OCR."""
         reader = PdfReader(io.BytesIO(raw_file))
         page_count = len(reader.pages)
         text = "\n".join((page.extract_text() or "").strip() for page in reader.pages).strip()

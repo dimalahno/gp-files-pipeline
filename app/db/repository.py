@@ -10,10 +10,14 @@ from app.db.models import UploadPlanItem, UploadStatus
 
 
 class UploadPlanItemRepository:
+    """Репозиторий для выборки и обновления статусов элементов конвертации."""
+
     def __init__(self, settings: Settings):
+        """Сохраняет настройки лимитов и параметров ретраев для операций репозитория."""
         self.settings = settings
 
     def lock_batch_for_convert(self, session: Session) -> list[UploadPlanItem]:
+        """Блокирует пачку готовых к конвертации записей и переводит их в CONVERTING."""
         stmt = (
             select(UploadPlanItem)
             .where(
@@ -46,6 +50,7 @@ class UploadPlanItemRepository:
         page_count: int,
         has_ocr: bool,
     ) -> None:
+        """Фиксирует успешную конвертацию и сохраняет метаданные извлеченного текста."""
         item.status = UploadStatus.CONVERTED
         item.text_s3_path = text_s3_path
         item.text_size = text_size
@@ -58,6 +63,7 @@ class UploadPlanItemRepository:
         item.version += 1
 
     def mark_convert_error(self, item: UploadPlanItem, error_text: str) -> None:
+        """Регистрирует ошибку конвертации и рассчитывает время следующего ретрая."""
         item.convert_attempt_count += 1
         item.convert_error = error_text
         item.status = UploadStatus.ERROR

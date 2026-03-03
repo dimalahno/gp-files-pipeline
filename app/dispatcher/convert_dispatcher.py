@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 class PlanItemConvertDispatcher:
+    """Планировщик, который выбирает задачи из БД и распределяет их по воркерам."""
+
     def __init__(
         self,
         settings: Settings,
@@ -22,6 +24,7 @@ class PlanItemConvertDispatcher:
         repository: UploadPlanItemRepository,
         worker: ItemConvertWorker,
     ):
+        """Инициализирует пул потоков и примитивы управления циклом диспетчера."""
         self.settings = settings
         self.session_factory = session_factory
         self.repository = repository
@@ -32,18 +35,21 @@ class PlanItemConvertDispatcher:
         self.dispatcher_thread: threading.Thread | None = None
 
     def start(self) -> None:
+        """Запускает фоновый поток циклической диспетчеризации задач."""
         if self.dispatcher_thread and self.dispatcher_thread.is_alive():
             return
         self.dispatcher_thread = threading.Thread(target=self._run_loop, daemon=True, name="convert-dispatcher")
         self.dispatcher_thread.start()
 
     def stop(self) -> None:
+        """Останавливает цикл диспетчера и завершает пул рабочих потоков."""
         self.stop_event.set()
         if self.dispatcher_thread:
             self.dispatcher_thread.join(timeout=5)
         self.pool.shutdown(wait=False, cancel_futures=True)
 
     def run_once(self) -> int:
+        """Выполняет одну итерацию: резервирует задачи и обрабатывает их параллельно."""
         with db_session(self.session_factory) as session:
             items = self.repository.lock_batch_for_convert(session)
             ids = [item.id for item in items]
@@ -57,6 +63,7 @@ class PlanItemConvertDispatcher:
         return len(ids)
 
     def _run_loop(self) -> None:
+        """Непрерывно запускает итерации диспетчеризации с заданным интервалом."""
         while not self.stop_event.is_set():
             try:
                 self.run_once()

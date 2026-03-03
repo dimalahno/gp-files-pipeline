@@ -7,7 +7,10 @@ from docx import Document
 
 
 class DocExtractor:
+    """Извлекает текст из офисных документов форматов DOCX/DOC."""
+
     def extract(self, raw_file: bytes, extension: str) -> tuple[str, int, bool]:
+        """Извлекает текст из DOCX; для DOC сообщает о необходимости предварительной конвертации."""
         normalized = extension.lower()
         if normalized == ".docx":
             doc = Document(io.BytesIO(raw_file))
@@ -23,6 +26,7 @@ class DocExtractor:
 
     @staticmethod
     def is_docx_bytes(raw_file: bytes) -> bool:
+        """Проверяет, можно ли интерпретировать переданные байты как валидный DOCX."""
         try:
             Document(io.BytesIO(raw_file))
             return True
