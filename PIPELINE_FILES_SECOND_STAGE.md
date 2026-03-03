@@ -212,23 +212,35 @@ S3 структура:
 # 🧱 7. Структура Python сервиса
 
 ```
-converter-service/
+gp-files-pipeline
 │
-├── app/
-│   ├── dispatcher.py
-│   ├── worker.py
-│   ├── extraction/
-│   │   ├── pdf_extractor.py
-│   │   ├── doc_extractor.py
-│   │   ├── ocr_service.py
-│   ├── storage/
-│   │   ├── s3_client.py
-│   ├── db/
-│   │   ├── repository.py
-│   └── models.py
+├── app
+│   ├── main.py
+│   ├── config.py
+│   │
+│   ├── dispatcher
+│   │     convert_dispatcher.py
+│   │
+│   ├── workers
+│   │     convert_worker.py
+│   │
+│   ├── extraction
+│   │     pdf_extractor.py
+│   │     doc_extractor.py
+│   │     ocr_service.py
+│   │
+│   ├── storage
+│   │     s3_client.py
+│   │
+│   ├── db
+│   │     models.py
+│   │     repository.py
+│   │
+│   └── api
+│         routes.py
 │
-├── requirements.txt
 ├── Dockerfile
+└── requirements.txt
 ```
 
 ---
