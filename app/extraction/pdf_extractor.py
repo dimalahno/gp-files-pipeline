@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import io
 
-import fitz
+import pymupdf as fitz
 from pypdf import PdfReader
 
 from app.config.config import Settings

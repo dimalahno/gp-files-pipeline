@@ -14,7 +14,7 @@ model_config = SettingsConfigDict(
 class Settings(BaseSettings):
     """Настройки FastAPI-сервиса и пути к справочнику санкций."""
     APP_NAME: str = "gp-files-pipeline"
-    APP_HOST: str = "0.0.0.0"
+    APP_HOST: str = "127.0.0.1"
     APP_PORT: int = 9001
     APP_CONTEXT_PATH: str = "/files/pipeline"
 

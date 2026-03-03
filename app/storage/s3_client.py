@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import boto3
 
-from app.config import Settings
+from app.config.config import Settings
 
 
 @dataclass
@@ -16,13 +16,13 @@ class S3Object:
 
 class S3Service:
     def __init__(self, settings: Settings):
-        self.bucket = settings.minio_bucket
+        self.bucket = settings.MINIO_BUCKET
         self.client = boto3.client(
             "s3",
-            endpoint_url=settings.minio_endpoint,
-            aws_access_key_id=settings.minio_access_key,
-            aws_secret_access_key=settings.minio_secret_key,
-            region_name=settings.minio_region,
+            endpoint_url=settings.MINIO_ENDPOINT,
+            aws_access_key_id=settings.MINIO_ACCESS_KEY,
+            aws_secret_access_key=settings.MINIO_SECRET_KEY,
+            region_name=settings.MINIO_REGION,
         )
 
     def download(self, key: str) -> S3Object:
