@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.config import Settings
+from app.config.config import Settings
 from app.extraction.doc_extractor import DocExtractor
 from app.extraction.ocr_service import OcrService
 from app.extraction.pdf_extractor import PdfExtractor

@@ -6,7 +6,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.config import Settings
+from app.config.config import Settings
 from app.db.repository import UploadPlanItemRepository
 from app.db.session import db_session
 from app.workers.convert_worker import ItemConvertWorker
@@ -27,7 +27,7 @@ class PlanItemConvertDispatcher:
         self.repository = repository
         self.worker = worker
 
-        self.pool = ThreadPoolExecutor(max_workers=settings.worker_threads, thread_name_prefix="convert")
+        self.pool = ThreadPoolExecutor(max_workers=settings.WORKER_THREADS, thread_name_prefix="convert")
         self.stop_event = threading.Event()
         self.dispatcher_thread: threading.Thread | None = None
 
@@ -60,6 +60,6 @@ class PlanItemConvertDispatcher:
         while not self.stop_event.is_set():
             try:
                 self.run_once()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logger.exception("Dispatcher loop failed")
-            self.stop_event.wait(self.settings.dispatcher_interval_seconds)
+            self.stop_event.wait(self.settings.DISPATCHER_INTERVAL_SECONDS)

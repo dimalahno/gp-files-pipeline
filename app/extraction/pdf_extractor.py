@@ -5,7 +5,7 @@ import io
 import fitz
 from pypdf import PdfReader
 
-from app.config import Settings
+from app.config.config import Settings
 from app.extraction.ocr_service import OcrService
 
 
@@ -19,7 +19,7 @@ class PdfExtractor:
         page_count = len(reader.pages)
         text = "\n".join((page.extract_text() or "").strip() for page in reader.pages).strip()
 
-        if len(text) >= self.settings.text_success_threshold:
+        if len(text) >= self.settings.TEXT_SUCCESS_THRESHOLD:
             return text, page_count, False
 
         doc = fitz.open(stream=raw_file, filetype="pdf")

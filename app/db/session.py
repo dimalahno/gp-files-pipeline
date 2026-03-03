@@ -3,11 +3,11 @@ from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.config import Settings
+from app.config.config import Settings
 
 
 def build_session_factory(settings: Settings) -> sessionmaker[Session]:
-    engine = create_engine(settings.db_url, future=True, pool_pre_ping=True)
+    engine = create_engine(settings.DB_URL, future=True, pool_pre_ping=True)
     return sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
 
 

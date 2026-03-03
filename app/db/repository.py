@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.config import Settings
+from app.config.config import Settings
 from app.db.models import UploadPlanItem, UploadStatus
 
 
@@ -19,7 +19,7 @@ class UploadPlanItemRepository:
             .where(
                 and_(
                     UploadPlanItem.status == UploadStatus.UPLOADED,
-                    UploadPlanItem.convert_attempt_count < self.settings.max_convert_attempts,
+                    UploadPlanItem.convert_attempt_count < self.settings.MAX_CONVERT_ATTEMPTS,
                     or_(
                         UploadPlanItem.next_retry_at.is_(None),
                         UploadPlanItem.next_retry_at < func.now(),
@@ -27,7 +27,7 @@ class UploadPlanItemRepository:
                 )
             )
             .order_by(UploadPlanItem.id.asc())
-            .limit(self.settings.dispatcher_batch_size)
+            .limit(self.settings.DISPATCHER_BATCH_SIZE)
             .with_for_update(skip_locked=True)
         )
         items = list(session.scalars(stmt))
@@ -63,7 +63,7 @@ class UploadPlanItemRepository:
         item.status = UploadStatus.ERROR
         item.version += 1
 
-        if item.convert_attempt_count < self.settings.max_convert_attempts:
+        if item.convert_attempt_count < self.settings.MAX_CONVERT_ATTEMPTS:
             backoff_seconds = 2 ** min(item.convert_attempt_count, 8)
             item.next_retry_at = datetime.utcnow() + timedelta(seconds=backoff_seconds)
         else:
