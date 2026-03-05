@@ -1,7 +1,16 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, Integer, BigInteger, String, Text
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Enum,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -12,47 +21,162 @@ class Base(DeclarativeBase):
     pass
 
 
+class UploadPlanItemFilePathType(str, enum.Enum):
+    """Тип пути файла: оригинал, сконвертированный или обработанный."""
+
+    ORIGINAL = "ORIGINAL"
+    CONVERTED = "CONVERTED"
+    PROCESSED = "PROCESSED"
+
+
 class UploadStatus(str, enum.Enum):
-    """Перечень статусов обработки файла в конвейере конвертации."""
+    """Операционный статус обработки файла в конвейере."""
 
     CREATED = "CREATED"
     DOWNLOADING = "DOWNLOADING"
     UPLOADED = "UPLOADED"
-    CONVERTING = "CONVERTING"
     CONVERTED = "CONVERTED"
+    CONVERTING = "CONVERTING"
+    NOT_CONVERTED = "NOT_CONVERTED"
+    CONVERTED_ERROR = "CONVERTED_ERROR"
     PROCESSED = "PROCESSED"
+    PROCESSING = "PROCESSING"
+    NOT_PROCESSED = "NOT_PROCESSED"
+    PROCESSING_ERROR = "PROCESSING_ERROR"
     ERROR = "ERROR"
+    ERROR_UUID = "ERROR_UUID"
+    ERROR_FILE_NOT_FOUND = "ERROR_FILE_NOT_FOUND"
+    ERROR_FILE_NOT_EXIST = "ERROR_FILE_NOT_EXIST"
+    ERROR_FILE_NOT_SIZE = "ERROR_FILE_NOT_SIZE"
+    ERROR_JSR_PATH_EMPTY = "ERROR_JSR_PATH_EMPTY"
 
 
 class UploadPlanItem(Base):
-    """ORM-модель элемента плана загрузки/конвертации файлов."""
+    """Элемент плана загрузки файла с техническими и бизнес-метаданными."""
 
     __tablename__ = "upload_plan_item"
-    __table_args__ = {"schema": "files_storage"}
+    __table_args__ = (
+        UniqueConstraint("plan_id", "file_identifier", name="upload_plan_item_unique"),
+        {"schema": "files_storage"},
+    )
 
+    #: PK записи элемента плана.
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    #: FK на files_storage.upload_plan — версия плана загрузки.
     plan_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    #: Номер дела (ЕРДР).
     case_no: Mapped[str] = mapped_column(String, nullable=False)
+    #: Идентификатор надзорного производства.
+    registry_id: Mapped[int | None] = mapped_column(BigInteger)
+    #: UUID файла из источника (уникален в рамках плана).
     file_identifier: Mapped[str] = mapped_column(UUID(as_uuid=False), nullable=False)
+    #: UUID запроса/пакета передачи из источника.
     request_identifier: Mapped[str] = mapped_column(UUID(as_uuid=False), nullable=False)
-
+    #: Идентификатор карточки TE2.
+    te2_card_id: Mapped[str] = mapped_column(String, nullable=False)
+    #: Путь к файлу в Jackrabbit (JCR).
+    jsr_path: Mapped[str | None] = mapped_column(String)
+    #: Порядковый номер документа в источнике.
+    order_index: Mapped[int | None] = mapped_column(Integer)
+    #: Оригинальное имя документа из источника.
+    document_name: Mapped[str | None] = mapped_column(String)
+    #: ID типа документа.
+    doc_type_id: Mapped[int | None] = mapped_column(BigInteger)
+    #: Код типа документа.
+    doc_type_code: Mapped[str | None] = mapped_column(String)
+    #: Наименование типа документа (RU).
+    doc_type_name_ru: Mapped[str | None] = mapped_column(String)
+    #: Наименование типа документа (KK).
+    doc_type_name_kk: Mapped[str | None] = mapped_column(String)
+    #: ID спецификации (вида) документа.
+    doc_spec_id: Mapped[int | None] = mapped_column(BigInteger)
+    #: Код спецификации (вида) документа.
+    doc_spec_code: Mapped[str | None] = mapped_column(String)
+    #: Наименование спецификации документа (RU).
+    doc_spec_name_ru: Mapped[str | None] = mapped_column(String)
+    #: Наименование спецификации документа (KK).
+    doc_spec_name_kk: Mapped[str | None] = mapped_column(String)
+    #: ID квалификации.
+    qualification_id: Mapped[str | None] = mapped_column(String)
+    #: Код квалификации.
+    qualification_code: Mapped[str | None] = mapped_column(String)
+    #: Наименование квалификации (RU).
+    qualification_name_ru: Mapped[str | None] = mapped_column(String)
+    #: Наименование квалификации (KK).
+    qualification_name_kk: Mapped[str | None] = mapped_column(String)
+    #: Дата отправки документа из источника.
+    send_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    #: Основной префикс для файлов в S3.
+    s3_main_prefix: Mapped[str | None] = mapped_column(String)
+    #: Путь/тип оригинального файла в S3/MinIO.
+    s3_file_path_original: Mapped[UploadPlanItemFilePathType | None] = mapped_column(
+        Enum(UploadPlanItemFilePathType, name="upload_plan_item_file_path_type", native_enum=False)
+    )
+    #: Имя оригинального файла в S3/MinIO.
+    s3_file_name_original: Mapped[str | None] = mapped_column(String)
+    #: Расширение оригинального файла в S3/MinIO.
+    s3_file_ext_original: Mapped[str | None] = mapped_column(String(10))
+    #: MIME-тип оригинального файла в S3/MinIO.
+    s3_mime_type_original: Mapped[str | None] = mapped_column(String)
+    #: Путь/тип сконвертированного файла в S3/MinIO.
+    s3_file_path_converted: Mapped[UploadPlanItemFilePathType | None] = mapped_column(
+        Enum(UploadPlanItemFilePathType, name="upload_plan_item_file_path_type", native_enum=False)
+    )
+    #: Имя сконвертированного файла в S3/MinIO.
+    s3_file_name_converted: Mapped[str | None] = mapped_column(String)
+    #: Путь/тип обработанного файла в S3/MinIO.
+    s3_file_path_processed: Mapped[UploadPlanItemFilePathType | None] = mapped_column(
+        Enum(UploadPlanItemFilePathType, name="upload_plan_item_file_path_type", native_enum=False)
+    )
+    #: Имя обработанного файла в S3/MinIO.
+    s3_file_name_processed: Mapped[str | None] = mapped_column(String)
+    #: Операционный статус обработки (главный state machine).
     status: Mapped[UploadStatus] = mapped_column(
         Enum(UploadStatus, name="upload_plan_item_status", native_enum=False),
         nullable=False,
         default=UploadStatus.CREATED,
     )
-
-    s3_file_path_original: Mapped[str | None] = mapped_column(Text)
-    s3_file_name_original: Mapped[str | None] = mapped_column(String)
-
-    convert_attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
-
-    text_s3_path: Mapped[str | None] = mapped_column(Text)
-    text_size: Mapped[int | None] = mapped_column(BigInteger)
-    page_count: Mapped[int | None] = mapped_column(Integer)
-    has_ocr: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    text_extracted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    convert_error: Mapped[str | None] = mapped_column(Text)
-
+    #: Дата последнего изменения статуса.
+    status_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=False)
+    #: Описание последней ошибки обработки файла.
+    error_message: Mapped[str | None] = mapped_column(String)
+    #: Дата создания записи.
+    created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=False)
+    #: Дата последнего обновления записи.
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=False)
+    #: Флаг: доступен ли файл для загрузки.
+    jr_file_exist: Mapped[bool | None] = mapped_column(Boolean)
+    #: Размер файла в байтах.
+    jr_file_size: Mapped[int | None] = mapped_column(BigInteger)
+    #: MIME-тип файла в Jackrabbit.
+    jr_mime_type: Mapped[str | None] = mapped_column(String)
+    #: Версия для оптимистичной блокировки.
     version: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    #: Количество попыток обработки (скачивание/загрузка в S3).
+    attempt_count: Mapped[int | None] = mapped_column(Integer, nullable=False, default=0)
+    #: Момент, когда запись можно снова взять в обработку после ошибки.
+    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    #: Флаг, что файл загружен (status = UPLOADED).
+    is_uploaded: Mapped[bool | None] = mapped_column(Boolean, nullable=False, default=False)
+    #: Флаг, что файл сконвертирован в txt (status = CONVERTED).
+    is_converted: Mapped[bool | None] = mapped_column(Boolean, nullable=False, default=False)
+    #: Флаг, что файл обработан (status = PROCESSED).
+    is_processed: Mapped[bool | None] = mapped_column(Boolean, nullable=False, default=False)
+    #: Количество попыток конвертации.
+    convert_attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    #: Время следующей попытки конвертации.
+    convert_next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    #: Сообщение об ошибке, возникшей при конвертации.
+    convert_error: Mapped[str | None] = mapped_column("convert_error_message", String)
+    #: Размер сконвертированного текста.
+    text_size: Mapped[int | None] = mapped_column("converted_text_size", BigInteger)
+    #: Путь к результату извлечённого текста.
+    text_s3_path: Mapped[str | None] = mapped_column(Text)
+    #: Количество страниц исходного документа.
+    page_count: Mapped[int | None] = mapped_column(Integer)
+    #: Признак, использовался ли OCR.
+    has_ocr: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    #: MIME-тип сконвертированного файла в S3.
+    s3_mime_type_converted: Mapped[str | None] = mapped_column(String)
+    #: Флаг, что текст был извлечен.
+    text_extracted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
