@@ -56,3 +56,5 @@ logs/
 *.log.*
 .env.local
 .env.*.local
+/app/investigate_code/input_files/
+/app/investigate_code/output/
