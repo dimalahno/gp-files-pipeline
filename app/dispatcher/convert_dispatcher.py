@@ -54,9 +54,9 @@ class PlanItemConvertDispatcher:
             items = self.repository.lock_batch_for_convert(session)
             ids = [item.id for item in items]
 
-        futures: list[Future] = [self.pool.submit(self.worker.process, item_id) for item_id in ids]
-        for future in futures:
-            future.result()
+        # futures: list[Future] = [self.pool.submit(self.worker.process, item_id) for item_id in ids]
+        # for future in futures:
+        #     future.result()
 
         if ids:
             logger.info("Dispatched %s items for conversion", len(ids))
