@@ -222,10 +222,7 @@ class UploadPlanItem(Base):
     convert_error_message: Mapped[str | None] = mapped_column(String)
     #: Размер сконвертированного текста.
     converted_text_size: Mapped[int | None] = mapped_column(BigInteger)
-    #: Путь к результату извлечённого текста.
-    # text_s3_path: Mapped[str | None] = mapped_column(Text)
-    #: Количество страниц исходного документа.
-    # page_count: Mapped[int | None] = mapped_column(Integer)
-
     #: Признак, использовался ли OCR.
-    # has_ocr: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    has_ocr: Mapped[bool] = mapped_column(Boolean)
+    #: MIME-тип сконвертированного файла, сохранённого в S3
+    s3_mime_type_converted: Mapped[str | None] = mapped_column(String)

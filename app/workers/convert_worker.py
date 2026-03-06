@@ -41,15 +41,15 @@ class ItemConvertWorker:
                 object_key, filename = self._load_source_item_meta(item)
                 s3_object = self.s3_service.download(object_key)
 
-                text, page_count, has_ocr = self.extraction_service.extract(filename, s3_object.body)
+                text, has_ocr = self.extraction_service.extract(filename, s3_object.body)
 
                 filename_converted: str = self._change_extension_to_txt(filename)
                 object_key_converted = f"{item.s3_main_prefix}{item.s3_file_path_converted.value}/{filename_converted}"
 
-                logger.info(page_count, has_ocr)
+                logger.info(has_ocr)
                 text_size = self.s3_service.upload_text(object_key_converted, text)
 
-                self.repository.mark_converted(item, filename_converted, text_size, page_count, has_ocr)
+                self.repository.mark_converted(item, filename_converted, text_size, has_ocr)
 
             logger.info("Successfully converted item_id=%s", item_id)
         except Exception as exc:  # noqa: BLE001

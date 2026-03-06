@@ -1220,14 +1220,16 @@ def main():
         type_name = DOC_TYPE_NAMES.get(doc_info["type"], doc_info["type"])
         print(f"OK ({method}, {type_name})")
 
-    # 7. Индекс
+    # После обработки всех документов
+    # =====================================================
+    # 7. Создание индекс документа
     index_content = generate_index(all_docs, skipped_docs)
-    with open(os.path.join(OUTPUT_DIR, "index.md"), "w", encoding="utf-8") as f:
+    with open(os.path.join(OUTPUT_DIR, "index_case_number.md"), "w", encoding="utf-8") as f:
         f.write(index_content)
 
-    # 8. СВОДНАЯ СПРАВКА
+    # 8. Создание сводная справки
     summary = generate_case_summary(all_docs)
-    summary_path = os.path.join(OUTPUT_DIR, "СПРАВКА.md")
+    summary_path = os.path.join(OUTPUT_DIR, "summary_report_case_number.md")
     with open(summary_path, "w", encoding="utf-8") as f:
         f.write(summary)
 

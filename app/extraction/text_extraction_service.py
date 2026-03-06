@@ -17,7 +17,7 @@ class TextExtractionService:
         self.pdf_extractor = PdfExtractor(settings, ocr_service)
         self.doc_extractor = DocExtractor()
 
-    def extract(self, filename: str, raw_file: bytes) -> tuple[str, int, bool]:
+    def extract(self, filename: str, raw_file: bytes) -> tuple[str, bool]:
         """Извлекает текст из файла, возвращая текст, число страниц и признак OCR."""
         ext = Path(filename).suffix.lower()
         if ext == ".pdf":

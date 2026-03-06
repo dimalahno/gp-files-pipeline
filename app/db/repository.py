@@ -83,15 +83,14 @@ class UploadPlanItemRepository:
         item: UploadPlanItem,
         s3_file_name_converted: str,
         text_size: int,
-        page_count: int,
         has_ocr: bool,
     ) -> None:
         """Фиксирует успешную конвертацию и сохраняет метаданные извлеченного текста."""
         item.status = UploadStatus.CONVERTED
         item.s3_file_name_converted = s3_file_name_converted
         item.converted_text_size = text_size
-        # item.page_count = page_count
-        # item.has_ocr = has_ocr
+        item.s3_mime_type_converted = 'Method…'
+        item.has_ocr = has_ocr
         item.is_converted = True
         item.convert_error_message = None
         item.convert_attempt_count += 1
@@ -107,6 +106,6 @@ class UploadPlanItemRepository:
 
         if item.convert_attempt_count < self.settings.MAX_CONVERT_ATTEMPTS:
             backoff_seconds = 2 ** min(item.convert_attempt_count, 8)
-            item.next_retry_at = datetime.utcnow() + timedelta(seconds=backoff_seconds)
+            item.next_retry_at = datetime.now() + timedelta(seconds=backoff_seconds)
         else:
             item.next_retry_at = None
