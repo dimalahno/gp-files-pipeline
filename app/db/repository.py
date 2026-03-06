@@ -6,7 +6,42 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.config.config import Settings
-from app.db.models import UploadPlanItem, UploadStatus
+from app.db.models import UploadPlan, UploadPlanItem, UploadPlanStatus, UploadStatus
+
+
+class UploadPlanRepository:
+    """Репозиторий для работы с агрегированным состоянием плана загрузки."""
+
+    def lock_by_id(self, session: Session, plan_id: int) -> UploadPlan | None:
+        """Возвращает план по идентификатору с блокировкой строки для безопасного обновления."""
+        stmt = select(UploadPlan).where(UploadPlan.id == plan_id).with_for_update(skip_locked=True)
+        return session.scalar(stmt)
+
+    def mark_processing(self, plan: UploadPlan) -> None:
+        """Переводит план в статус PROCESSING и сбрасывает ошибку уровня плана."""
+        plan.status = UploadPlanStatus.PROCESSING
+        plan.last_error = None
+
+    def mark_completed(self, plan: UploadPlan) -> None:
+        """Помечает план как полностью успешно завершённый."""
+        plan.status = UploadPlanStatus.COMPLETED
+        plan.last_error = None
+
+    def mark_completed_with_errors(self, plan: UploadPlan, error_text: str | None = None) -> None:
+        """Помечает план как завершённый с ошибками и сохраняет сообщение об ошибке."""
+        plan.status = UploadPlanStatus.COMPLETED_WITH_ERRORS
+        plan.last_error = error_text
+
+    def mark_failed(self, plan: UploadPlan, error_text: str) -> None:
+        """Помечает план как неуспешно завершённый на уровне всего плана."""
+        plan.status = UploadPlanStatus.FAILED
+        plan.last_error = error_text
+
+    def recalculate_counters(self, plan: UploadPlan, items: list[UploadPlanItem]) -> None:
+        """Пересчитывает агрегированные счётчики плана на основании списка элементов."""
+        plan.total_items = len(items)
+        plan.done_items = sum(1 for item in items if item.status in {UploadStatus.UPLOADED, UploadStatus.CONVERTED, UploadStatus.PROCESSED})
+        plan.failed_items = sum(1 for item in items if item.status == UploadStatus.ERROR)
 
 
 class UploadPlanItemRepository:

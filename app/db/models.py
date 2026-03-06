@@ -51,6 +51,58 @@ class UploadStatus(str, enum.Enum):
     ERROR_JSR_PATH_EMPTY = "ERROR_JSR_PATH_EMPTY"
 
 
+class UploadPlanStatus(str, enum.Enum):
+    """Статусы обработки плана загрузки."""
+
+    CREATED = "CREATED"
+    PROCESSING = "PROCESSING"
+    UPLOADED = "UPLOADED"
+    CONVERTED = "CONVERTED"
+    COMPLETED = "COMPLETED"
+    COMPLETED_WITH_ERRORS = "COMPLETED_WITH_ERRORS"
+    FAILED = "FAILED"
+
+
+class UploadPlan(Base):
+    """План загрузки файлов для конкретного дела и версии синхронизации."""
+
+    __tablename__ = "upload_plan"
+    __table_args__ = (
+        UniqueConstraint("case_no", "version", name="upload_plan_case_version_uq"),
+        {"schema": "files_storage"},
+    )
+
+    #: PK записи плана.
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    #: Идентификатор надзорного производства.
+    registry_id: Mapped[int | None] = mapped_column(BigInteger)
+    #: Номер дела ЕРДР, по которому сформирован план.
+    case_no: Mapped[str] = mapped_column(String, nullable=False)
+    #: Статус обработки плана.
+    status: Mapped[UploadPlanStatus] = mapped_column(
+        Enum(UploadPlanStatus, name="upload_plan_status", native_enum=False),
+        nullable=False,
+    )
+    #: JSON-план в виде текста (источник истины для воспроизведения).
+    plan_json: Mapped[str] = mapped_column(Text, nullable=False)
+    #: Хэш плана (например sha256) для идемпотентности.
+    plan_hash: Mapped[str | None] = mapped_column(String)
+    #: Версия плана в рамках одного case_no.
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    #: Количество элементов (файлов) в плане.
+    total_items: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    #: Количество элементов, завершённых успешно.
+    done_items: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    #: Количество элементов, завершённых с финальной ошибкой.
+    failed_items: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    #: Дата/время создания записи плана.
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+    #: Дата/время последнего обновления записи плана.
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+    #: Ошибка уровня плана (не по отдельным файлам).
+    last_error: Mapped[str | None] = mapped_column(Text)
+
+
 class UploadPlanItem(Base):
     """Элемент плана загрузки файла с техническими и бизнес-метаданными."""
 
