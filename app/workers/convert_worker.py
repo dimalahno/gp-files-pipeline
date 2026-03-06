@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
@@ -33,15 +34,22 @@ class ItemConvertWorker:
     def process(self, item_id: int) -> None:
         """Обрабатывает один элемент плана конвертации по его идентификатору."""
         try:
-            object_key, filename = self._load_source_meta(item_id)
-            s3_object = self.s3_service.download(object_key)
-            text, page_count, has_ocr = self.extraction_service.extract(filename, s3_object.body)
-            text_key = f"converted/{self._load_plan_id(item_id)}/{item_id}.txt"
-            text_size = self.s3_service.upload_text(text_key, text)
-
             with db_session(self.session_factory) as session:
                 item = self._get_item(session, item_id)
-                self.repository.mark_converted(item, text_key, text_size, page_count, has_ocr)
+                # object_key, filename = self._load_source_meta(item_id)
+
+                object_key, filename = self._load_source_item_meta(item)
+                s3_object = self.s3_service.download(object_key)
+
+                text, page_count, has_ocr = self.extraction_service.extract(filename, s3_object.body)
+
+                filename_converted: str = self._change_extension_to_txt(filename)
+                object_key_converted = f"{item.s3_main_prefix}{item.s3_file_path_converted.value}/{filename_converted}"
+
+                logger.info(page_count, has_ocr)
+                text_size = self.s3_service.upload_text(object_key_converted, text)
+
+                self.repository.mark_converted(item, filename_converted, text_size, page_count, has_ocr)
 
             logger.info("Successfully converted item_id=%s", item_id)
         except Exception as exc:  # noqa: BLE001
@@ -57,7 +65,15 @@ class ItemConvertWorker:
             item = self._get_item(session, item_id)
             if not item.s3_file_path_original or not item.s3_file_name_original:
                 raise RuntimeError("Original S3 path or filename is empty")
-            return item.s3_file_path_original, item.s3_file_name_original
+            object_key = f"{item.s3_main_prefix}{item.s3_file_path_original}/{item.s3_file_name_original}"
+            return object_key, item.s3_file_name_originaldef
+
+    def _load_source_item_meta(self, item: UploadPlanItem) -> tuple[str, str]:
+        """Читает из сущности путь и имя исходного файла для заданного элемента."""
+        if not item.s3_file_path_original or not item.s3_file_name_original:
+            raise RuntimeError("Original S3 path or filename is empty")
+        object_key = f"{item.s3_main_prefix}{item.s3_file_path_original.value}/{item.s3_file_name_original}"
+        return object_key, item.s3_file_name_original
 
     def _load_plan_id(self, item_id: int) -> int:
         """Возвращает идентификатор плана, к которому относится элемент."""
@@ -75,3 +91,13 @@ class ItemConvertWorker:
         if item.status not in {UploadStatus.CONVERTING, UploadStatus.ERROR, UploadStatus.UPLOADED}:
             raise RuntimeError(f"UploadPlanItem id={item_id} has invalid status={item.status}")
         return item
+
+    @staticmethod
+    def _change_extension_to_txt(file_name: str) -> str:
+        """'
+        Принимает строку с именем файла и возвращает имя с расширением .txt
+        """
+        base, _ = os.path.splitext(file_name)
+        return base + ".txt"
+
+

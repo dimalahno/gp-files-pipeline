@@ -219,16 +219,13 @@ class UploadPlanItem(Base):
     #: Время следующей попытки конвертации.
     convert_next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
     #: Сообщение об ошибке, возникшей при конвертации.
-    convert_error: Mapped[str | None] = mapped_column("convert_error_message", String)
+    convert_error_message: Mapped[str | None] = mapped_column(String)
     #: Размер сконвертированного текста.
-    text_size: Mapped[int | None] = mapped_column("converted_text_size", BigInteger)
+    converted_text_size: Mapped[int | None] = mapped_column(BigInteger)
     #: Путь к результату извлечённого текста.
-    text_s3_path: Mapped[str | None] = mapped_column(Text)
+    # text_s3_path: Mapped[str | None] = mapped_column(Text)
     #: Количество страниц исходного документа.
-    page_count: Mapped[int | None] = mapped_column(Integer)
+    # page_count: Mapped[int | None] = mapped_column(Integer)
+
     #: Признак, использовался ли OCR.
-    has_ocr: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    #: MIME-тип сконвертированного файла в S3.
-    s3_mime_type_converted: Mapped[str | None] = mapped_column(String)
-    #: Флаг, что текст был извлечен.
-    text_extracted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # has_ocr: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

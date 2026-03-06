@@ -51,17 +51,18 @@ class UploadPlanItemRepository:
         """Сохраняет настройки лимитов и параметров ретраев для операций репозитория."""
         self.settings = settings
 
-    def lock_batch_for_convert(self, session: Session) -> list[UploadPlanItem]:
+    def lock_batch_for_convert(self, session: Session, plan_id: int) -> list[UploadPlanItem]:
         """Блокирует пачку готовых к конвертации записей и переводит их в CONVERTING."""
         stmt = (
             select(UploadPlanItem)
             .where(
                 and_(
+                    UploadPlanItem.plan_id == plan_id,
                     UploadPlanItem.status == UploadStatus.UPLOADED,
                     UploadPlanItem.convert_attempt_count < self.settings.MAX_CONVERT_ATTEMPTS,
                     or_(
-                        UploadPlanItem.next_retry_at.is_(None),
-                        UploadPlanItem.next_retry_at < func.now(),
+                        UploadPlanItem.convert_next_retry_at.is_(None),
+                        UploadPlanItem.convert_next_retry_at < func.now(),
                     ),
                 )
             )
@@ -73,26 +74,26 @@ class UploadPlanItemRepository:
 
         for item in items:
             item.status = UploadStatus.CONVERTING
-            item.convert_error = None
+            item.convert_error_message = None
 
         return items
 
     def mark_converted(
         self,
         item: UploadPlanItem,
-        text_s3_path: str,
+        s3_file_name_converted: str,
         text_size: int,
         page_count: int,
         has_ocr: bool,
     ) -> None:
         """Фиксирует успешную конвертацию и сохраняет метаданные извлеченного текста."""
         item.status = UploadStatus.CONVERTED
-        item.text_s3_path = text_s3_path
-        item.text_size = text_size
-        item.page_count = page_count
-        item.has_ocr = has_ocr
-        item.text_extracted = True
-        item.convert_error = None
+        item.s3_file_name_converted = s3_file_name_converted
+        item.converted_text_size = text_size
+        # item.page_count = page_count
+        # item.has_ocr = has_ocr
+        item.is_converted = True
+        item.convert_error_message = None
         item.convert_attempt_count += 1
         item.next_retry_at = None
         item.version += 1
@@ -100,7 +101,7 @@ class UploadPlanItemRepository:
     def mark_convert_error(self, item: UploadPlanItem, error_text: str) -> None:
         """Регистрирует ошибку конвертации и рассчитывает время следующего ретрая."""
         item.convert_attempt_count += 1
-        item.convert_error = error_text
+        item.convert_error_message = error_text
         item.status = UploadStatus.ERROR
         item.version += 1
 
