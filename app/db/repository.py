@@ -100,7 +100,7 @@ class UploadPlanItemRepository:
         item.s3_info_type_converted = info_type_converted
 
 
-    def mark_not_converted(self, item: UploadPlanItem, info_type_converted: str) -> None:
+    def mark_not_converted(self, item: UploadPlanItem, payload: str) -> None:
         """Фиксирует что файл не подлежит конвертации устанавливаем статус."""
         item.status = UploadStatus.NOT_CONVERTED
         item.has_ocr = False
@@ -109,7 +109,7 @@ class UploadPlanItemRepository:
         item.convert_attempt_count += 1
         item.next_retry_at = None
         item.version += 1
-        item.s3_info_type_converted = info_type_converted
+        item.s3_info_type_converted = payload
 
     def mark_convert_error(self, item: UploadPlanItem, error_text: str) -> None:
         """Регистрирует ошибку конвертации и рассчитывает время следующего ретрая."""

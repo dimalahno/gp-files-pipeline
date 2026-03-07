@@ -10,6 +10,7 @@ from app.db.models import UploadPlanItem, UploadStatus
 from app.db.repository import UploadPlanItemRepository
 from app.db.session import db_session
 from app.extraction.text_extraction_service import TextExtractionService
+from app.extraction.text_processing_service import TextProcessingService
 from app.storage.s3_client import S3Service
 
 logger = logging.getLogger(__name__)
@@ -24,35 +25,53 @@ class ItemConvertWorker:
         repository: UploadPlanItemRepository,
         s3_service: S3Service,
         extraction_service: TextExtractionService,
+        text_processing_service: TextProcessingService,
     ):
         """Сохраняет зависимости, необходимые для полного цикла обработки элемента."""
         self.session_factory = session_factory
         self.repository = repository
         self.s3_service = s3_service
         self.extraction_service = extraction_service
+        self.text_processing_service = text_processing_service
 
     def process(self, item_id: int) -> None:
         """Обрабатывает один элемент плана конвертации по его идентификатору."""
         try:
             with db_session(self.session_factory) as session:
                 item = self._get_item(session, item_id)
-                # object_key, filename = self._load_source_meta(item_id)
 
                 object_key, filename = self._load_source_item_meta(item)
+
+                # Пропуск по типу файла
+                doc_info, skipped = self.text_processing_service.precheck(filename)
+                if skipped is not None:
+                    logger.info("Skipping item_id=%s file_name=%s", item_id, filename)
+                    self.repository.mark_not_converted(item=item, payload=skipped.to_json(),)
+                    return
+
+                # Загружаем файл из s3 для конвертации
                 s3_object = self.s3_service.download(object_key)
 
+                # Извлекаем текст из документа метод извлечения
                 text, has_ocr = self.extraction_service.extract(filename, s3_object.body)
+                method_extracted = "OCR" if has_ocr else "text"
 
-                filename_converted: str = self._change_extension_to_txt(filename)
-                object_key_converted = f"{item.s3_main_prefix}{item.s3_file_path_converted.value}/{filename_converted}"
+                # Обрабатываем текст
+                self.text_processing_service.process(filename, text, method_extracted)
 
-                logger.info(has_ocr)
+                # Получим новое имя файл в mark dawn
+                md_filename_converted: str = self._change_extension_to_md(filename)
+                object_key_converted = f"{item.s3_main_prefix}{item.s3_file_path_converted.value}/{md_filename_converted}"
+
+                # загружаем новый файл в s3
                 text_size = self.s3_service.upload_text(object_key_converted, text)
+                logger.info("Successfully uploaded item_id=%s md_file=%s", item_id, md_filename_converted)
 
-                self.repository.mark_converted(item, filename_converted, text_size, has_ocr, "")
-
-            logger.info("Successfully converted item_id=%s", item_id)
-        except Exception as exc:  # noqa: BLE001
+                # Сохраняем информацию о конвертации в базу
+                self.repository.mark_converted(item, md_filename_converted, text_size, has_ocr, "")
+                logger.info("Successfully converted item_id=%s md_file=%s", item_id, md_filename_converted)
+        except Exception as exc:
+            # Любая ошибка
             logger.exception("Failed to convert item_id=%s", item_id)
             with db_session(self.session_factory) as session:
                 item = self._get_item(session, item_id)
@@ -93,11 +112,11 @@ class ItemConvertWorker:
         return item
 
     @staticmethod
-    def _change_extension_to_txt(file_name: str) -> str:
+    def _change_extension_to_md(file_name: str) -> str:
         """'
-        Принимает строку с именем файла и возвращает имя с расширением .txt
+        Принимает строку с именем файла и возвращает имя с расширением .md
         """
         base, _ = os.path.splitext(file_name)
-        return base + ".txt"
+        return base + ".md"
 
 
