@@ -123,17 +123,17 @@ class TextProcessingService:
     def precheck(self, filename: str) -> tuple[dict[str, str], TextProcessingResult | None]:
         """# 1. Классификация по имени"""
 
-        doc_info = classify_by_filename(filename)
+        doc_info_type = classify_by_filename(filename)
 
-        if doc_info["type"] in SKIP_FILE_TYPES:
-            payload = self._build_skip_payload(skip_type=doc_info["type"], filename=filename)
-            return doc_info, TextProcessingResult(
+        if doc_info_type["type"] in SKIP_FILE_TYPES:
+            payload = self._build_skip_payload(skip_type=doc_info_type["type"], filename=filename)
+            return doc_info_type, TextProcessingResult(
                 converted=False,
-                skip_type=doc_info["type"],
+                skip_type=doc_info_type["type"],
                 payload=payload,
             )
 
-        return doc_info, None
+        return doc_info_type, None
 
     @staticmethod
     def _build_skip_payload(skip_type: str, filename: str) -> dict[str, Any]:
@@ -158,12 +158,97 @@ class TextProcessingService:
         cleaned = clean_text(text)
 
         essential = extract_essential_data(text, doc_info["type"], cleaned)
-        payload = {"info": doc_info, "data": essential, "method": method}
+        payload = {"info": doc_info, "data": essential, "method": method, "cleaned": cleaned}
         return TextProcessingResult(converted=True, skip_type=None, payload=payload)
 
-    @staticmethod
-    def dumps_payload(payload: dict[str, Any]) -> str:
-        return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    def generate_markdown(self, doc_info: dict[str, Any], cleaned_text: str, essential_data: dict[str, Any],
+                          extraction_method: str) -> str:
+        lines: list[str] = []
+        type_name = DOC_TYPE_NAMES.get(doc_info["type"], doc_info["type"])
+        lines.append(f"# {type_name}")
+        lines.append("")
+
+        lines.append("## Метаданные")
+        lines.append(f"- **Файл:** `{doc_info['filename']}`")
+        lines.append(f"- **Тип:** {type_name}")
+        if doc_info["lang"]:
+            lines.append(f"- **Язык:** {LANG_NAMES.get(doc_info['lang'], doc_info['lang'])}")
+        if doc_info["case_number"]:
+            lines.append(f"- **Номер дела ЕРДР:** №{doc_info['case_number']}")
+        if doc_info.get("court_date"):
+            lines.append(f"- **Дата судебного заседания:** {doc_info['court_date']}")
+        if doc_info["timestamp"]:
+            try:
+                ts = int(doc_info["timestamp"]) / 1000
+                dt = datetime.fromtimestamp(ts)
+                lines.append(f"- **Дата создания:** {dt.strftime('%d.%m.%Y %H:%M')}")
+            except (ValueError, OSError):
+                pass
+        lines.append(f"- **Извлечение:** {extraction_method}")
+        lines.append("")
+
+        if essential_data:
+            lines.append("## Извлечённые данные")
+            field_labels = {
+                "fio": "ФИО",
+                "iin": "ИИН",
+                "case_numbers": "Номера дел",
+                "dates": "Даты",
+                "articles_uk": "Статьи УК РК",
+                "phones": "Телефоны",
+                "amounts": "Суммы",
+                "addresses": "Адреса",
+                "protocol_subtype": "Вид протокола",
+                "interrogation_start": "Начало допроса",
+                "interrogation_end": "Окончание допроса",
+                "person_name": "ФИО допрашиваемого",
+                "person_dob": "Дата рождения",
+                "person_birthplace": "Место рождения",
+                "person_citizenship": "Гражданство",
+                "person_workplace": "Место работы",
+                "person_occupation": "Должность",
+                "person_address": "Адрес",
+                "person_phone": "Телефон",
+                "person_criminal_record": "Судимость",
+                "decree_subtype": "Вид постановления",
+                "court_case_id": "Номер суд. дела",
+                "judge": "Судья",
+                "court_subject": "В отношении",
+                "court_time_start": "Начало заседания",
+                "court_time_end": "Окончание заседания",
+                "court_name": "Суд",
+                "court_participants": "Участники",
+                "detention_date": "Дата задержания",
+                "detention_time": "Время задержания",
+                "detention_location": "Место содержания",
+            }
+            for key, label in field_labels.items():
+                if key in essential_data:
+                    val = essential_data[key]
+                    if isinstance(val, list):
+                        if len(val) == 1:
+                            lines.append(f"- **{label}:** {val[0]}")
+                        else:
+                            lines.append(f"- **{label}:**")
+                            for item in val:
+                                lines.append(f"  - {item}")
+                    else:
+                        lines.append(f"- **{label}:** {val}")
+
+            for block_key, block_title in [("testimony", "Показания"), ("qa_section", "Вопросы и ответы"),
+                                           ("resolution", "Резолютивная часть"), ("description", "Описательная часть")]:
+                if block_key in essential_data:
+                    lines.append("")
+                    lines.append(f"### {block_title}")
+                    lines.append(essential_data[block_key])
+            lines.append("")
+
+        lines.append("## Содержание (очищенный текст)")
+        lines.append("")
+        # В конце очищенный текст
+        lines.append(cleaned_text)
+        lines.append("")
+        return "\n".join(lines)
 
 
 def classify_by_filename(filename: str) -> dict[str, str]:
@@ -685,92 +770,6 @@ def build_converted_markdown(doc_info: dict[str, Any], cleaned_text: str, essent
                 lines.append(f"- **{key}:** {', '.join(str(v) for v in value)}")
             else:
                 lines.append(f"- **{key}:** {value}")
-        lines.append("")
-
-    lines.append("## Содержание (очищенный текст)")
-    lines.append("")
-    lines.append(cleaned_text)
-    lines.append("")
-    return "\n".join(lines)
-
-def generate_markdown(doc_info: dict[str, Any], cleaned_text: str, essential_data: dict[str, Any], extraction_method: str) -> str:
-    lines: list[str] = []
-    type_name = DOC_TYPE_NAMES.get(doc_info["type"], doc_info["type"])
-    lines.append(f"# {type_name}")
-    lines.append("")
-
-    lines.append("## Метаданные")
-    lines.append(f"- **Файл:** `{doc_info['filename']}`")
-    lines.append(f"- **Тип:** {type_name}")
-    if doc_info["lang"]:
-        lines.append(f"- **Язык:** {LANG_NAMES.get(doc_info['lang'], doc_info['lang'])}")
-    if doc_info["case_number"]:
-        lines.append(f"- **Номер дела ЕРДР:** №{doc_info['case_number']}")
-    if doc_info.get("court_date"):
-        lines.append(f"- **Дата судебного заседания:** {doc_info['court_date']}")
-    if doc_info["timestamp"]:
-        try:
-            ts = int(doc_info["timestamp"]) / 1000
-            dt = datetime.fromtimestamp(ts)
-            lines.append(f"- **Дата создания:** {dt.strftime('%d.%m.%Y %H:%M')}")
-        except (ValueError, OSError):
-            pass
-    lines.append(f"- **Извлечение:** {extraction_method}")
-    lines.append("")
-
-    if essential_data:
-        lines.append("## Извлечённые данные")
-        field_labels = {
-            "fio": "ФИО",
-            "iin": "ИИН",
-            "case_numbers": "Номера дел",
-            "dates": "Даты",
-            "articles_uk": "Статьи УК РК",
-            "phones": "Телефоны",
-            "amounts": "Суммы",
-            "addresses": "Адреса",
-            "protocol_subtype": "Вид протокола",
-            "interrogation_start": "Начало допроса",
-            "interrogation_end": "Окончание допроса",
-            "person_name": "ФИО допрашиваемого",
-            "person_dob": "Дата рождения",
-            "person_birthplace": "Место рождения",
-            "person_citizenship": "Гражданство",
-            "person_workplace": "Место работы",
-            "person_occupation": "Должность",
-            "person_address": "Адрес",
-            "person_phone": "Телефон",
-            "person_criminal_record": "Судимость",
-            "decree_subtype": "Вид постановления",
-            "court_case_id": "Номер суд. дела",
-            "judge": "Судья",
-            "court_subject": "В отношении",
-            "court_time_start": "Начало заседания",
-            "court_time_end": "Окончание заседания",
-            "court_name": "Суд",
-            "court_participants": "Участники",
-            "detention_date": "Дата задержания",
-            "detention_time": "Время задержания",
-            "detention_location": "Место содержания",
-        }
-        for key, label in field_labels.items():
-            if key in essential_data:
-                val = essential_data[key]
-                if isinstance(val, list):
-                    if len(val) == 1:
-                        lines.append(f"- **{label}:** {val[0]}")
-                    else:
-                        lines.append(f"- **{label}:**")
-                        for item in val:
-                            lines.append(f"  - {item}")
-                else:
-                    lines.append(f"- **{label}:** {val}")
-
-        for block_key, block_title in [("testimony", "Показания"), ("qa_section", "Вопросы и ответы"), ("resolution", "Резолютивная часть"), ("description", "Описательная часть")]:
-            if block_key in essential_data:
-                lines.append("")
-                lines.append(f"### {block_title}")
-                lines.append(essential_data[block_key])
         lines.append("")
 
     lines.append("## Содержание (очищенный текст)")

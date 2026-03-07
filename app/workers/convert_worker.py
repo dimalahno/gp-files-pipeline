@@ -43,8 +43,8 @@ class ItemConvertWorker:
                 object_key, filename = self._load_source_item_meta(item)
 
                 # Пропуск по типу файла
-                doc_info, skipped = self.text_processing_service.precheck(filename)
-                if skipped is not None:
+                doc_info_type, skipped = self.text_processing_service.precheck(filename)
+                if skipped is not None and not skipped.converted:
                     logger.info("Skipping item_id=%s file_name=%s", item_id, filename)
                     self.repository.mark_not_converted(item=item, payload=skipped.to_json(),)
                     return
@@ -57,14 +57,28 @@ class ItemConvertWorker:
                 method_extracted = "OCR" if has_ocr else "text"
 
                 # Обрабатываем текст
-                self.text_processing_service.process(filename, text, method_extracted)
+                processing_result = self.text_processing_service.process(filename, text, method_extracted)
+
+                if not processing_result.converted:
+                    #
+                    logger.info("Skipping item_id=%s file_name=%s", item_id, filename)
+                    self.repository.mark_not_converted(item=item, payload=processing_result.to_json())
+                    return
 
                 # Получим новое имя файл в mark dawn
                 md_filename_converted: str = self._change_extension_to_md(filename)
                 object_key_converted = f"{item.s3_main_prefix}{item.s3_file_path_converted.value}/{md_filename_converted}"
 
-                # загружаем новый файл в s3
-                text_size = self.s3_service.upload_text(object_key_converted, text)
+                # Получаем контент в md в s3
+                md_content = self.text_processing_service.generate_markdown(
+                    processing_result.payload["info"],
+                    processing_result.payload["cleaned"],
+                    processing_result.payload["data"],
+                    method_extracted, )
+
+                # Загружаем полученный контент в s3
+                text_size = self.s3_service.upload_text(object_key_converted, md_content)
+
                 logger.info("Successfully uploaded item_id=%s md_file=%s", item_id, md_filename_converted)
 
                 # Сохраняем информацию о конвертации в базу
