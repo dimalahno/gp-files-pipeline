@@ -11,6 +11,7 @@ from app.db.repository import UploadPlanItemRepository
 from app.db.session import build_session_factory
 from app.dispatcher.convert_dispatcher import PlanItemConvertDispatcher
 from app.extraction.text_extraction_service import TextExtractionService
+from app.extraction.text_processing_service import TextProcessingService
 from app.storage.s3_client import S3Service
 from app.workers.convert_worker import ItemConvertWorker
 
@@ -28,7 +29,8 @@ async def lifespan(app: FastAPI):
     repository = UploadPlanItemRepository(app_settings)
     s3_service = S3Service(app_settings)
     extraction_service = TextExtractionService(app_settings)
-    worker = ItemConvertWorker(session_factory, repository, s3_service, extraction_service)
+    processing_service = TextProcessingService()
+    worker = ItemConvertWorker(session_factory, repository, s3_service, extraction_service, processing_service)
     dispatcher = PlanItemConvertDispatcher(app_settings, session_factory, repository, worker)
 
     app.state.dispatcher = dispatcher

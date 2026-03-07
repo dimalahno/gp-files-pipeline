@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import json
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
@@ -10,6 +11,7 @@ from app.db.models import UploadPlanItem, UploadStatus
 from app.db.repository import UploadPlanItemRepository
 from app.db.session import db_session
 from app.extraction.text_extraction_service import TextExtractionService
+from app.extraction.text_processing_service import TextProcessingService
 from app.storage.s3_client import S3Service
 
 logger = logging.getLogger(__name__)
@@ -24,12 +26,14 @@ class ItemConvertWorker:
         repository: UploadPlanItemRepository,
         s3_service: S3Service,
         extraction_service: TextExtractionService,
+        processing_service: TextProcessingService,
     ):
         """Сохраняет зависимости, необходимые для полного цикла обработки элемента."""
         self.session_factory = session_factory
         self.repository = repository
         self.s3_service = s3_service
         self.extraction_service = extraction_service
+        self.processing_service = processing_service
 
     def process(self, item_id: int) -> None:
         """Обрабатывает один элемент плана конвертации по его идентификатору."""
@@ -42,6 +46,15 @@ class ItemConvertWorker:
                 s3_object = self.s3_service.download(object_key)
 
                 text, has_ocr = self.extraction_service.extract(filename, s3_object.body)
+                method = "ocr" if has_ocr else "text"
+                processing_result = self.processing_service.process(filename=filename, text=text, method=method)
+
+                info_type_converted = json.dumps(processing_result.payload, ensure_ascii=False)
+
+                if not processing_result.should_convert:
+                    self.repository.mark_not_converted(item, info_type_converted)
+                    logger.info("Item %s marked as not converted", item_id)
+                    return
 
                 filename_converted: str = self._change_extension_to_txt(filename)
                 object_key_converted = f"{item.s3_main_prefix}{item.s3_file_path_converted.value}/{filename_converted}"
@@ -49,7 +62,7 @@ class ItemConvertWorker:
                 logger.info(has_ocr)
                 text_size = self.s3_service.upload_text(object_key_converted, text)
 
-                self.repository.mark_converted(item, filename_converted, text_size, has_ocr, "")
+                self.repository.mark_converted(item, filename_converted, text_size, has_ocr, info_type_converted)
 
             logger.info("Successfully converted item_id=%s", item_id)
         except Exception as exc:  # noqa: BLE001
@@ -99,5 +112,4 @@ class ItemConvertWorker:
         """
         base, _ = os.path.splitext(file_name)
         return base + ".txt"
-
 
