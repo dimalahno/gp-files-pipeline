@@ -36,60 +36,79 @@ class ItemConvertWorker:
 
     def process(self, item_id: int) -> None:
         """Обрабатывает один элемент плана конвертации по его идентификатору."""
-        try:
-            with db_session(self.session_factory) as session:
-                item = self._get_item(session, item_id)
+        with db_session(self.session_factory) as session:
+            item = self._get_item(session, item_id)
 
+            try:
                 object_key, filename = self._load_source_item_meta(item)
 
                 # Пропуск по типу файла
                 doc_info_type, skipped = self.text_processing_service.precheck(filename)
                 if skipped is not None and not skipped.converted:
                     logger.info("Skipping item_id=%s file_name=%s", item_id, filename)
-                    self.repository.mark_not_converted(item=item, payload=skipped.to_json(),)
+                    self.repository.mark_not_converted(item=item, payload=skipped.to_json())
                     return
 
                 # Загружаем файл из s3 для конвертации
                 s3_object = self.s3_service.download(object_key)
 
-                # Извлекаем текст из документа метод извлечения
+                # Извлекаем текст из документа
                 text, has_ocr = self.extraction_service.extract(filename, s3_object.body)
                 method_extracted = "OCR" if has_ocr else "text"
 
                 # Обрабатываем текст
-                processing_result = self.text_processing_service.process(filename, text, method_extracted)
+                processing_result = self.text_processing_service.process(
+                    filename,
+                    text,
+                    method_extracted,
+                )
 
                 if not processing_result.converted:
-                    #
                     logger.info("Skipping item_id=%s file_name=%s", item_id, filename)
                     self.repository.mark_not_converted(item=item, payload=processing_result.to_json())
                     return
 
-                # Получим новое имя файл в mark dawn
-                md_filename_converted: str = self._change_extension_to_md(filename)
-                object_key_converted = f"{item.s3_main_prefix}{item.s3_file_path_converted.value}/{md_filename_converted}"
+                # Новое имя markdown файла
+                md_filename_converted = self._change_extension_to_md(filename)
+                object_key_converted = (
+                    f"{item.s3_main_prefix}"
+                    f"{item.s3_file_path_converted.value}/"
+                    f"{md_filename_converted}"
+                )
 
-                # Получаем контент в md в s3
+                # Генерация markdown
                 md_content = self.text_processing_service.generate_markdown(
                     processing_result.payload["info"],
                     processing_result.payload["cleaned"],
                     processing_result.payload["data"],
-                    method_extracted, )
+                    method_extracted,
+                )
 
-                # Загружаем полученный контент в s3
+                # Загрузка markdown в s3
                 text_size = self.s3_service.upload_text(object_key_converted, md_content)
 
-                logger.info("Successfully uploaded item_id=%s md_file=%s", item_id, md_filename_converted)
+                logger.info(
+                    "Successfully uploaded item_id=%s md_file=%s",
+                    item_id,
+                    md_filename_converted,
+                )
 
-                # Сохраняем информацию о конвертации в базу
-                self.repository.mark_converted(item, md_filename_converted, text_size, has_ocr, "")
-                logger.info("Successfully converted item_id=%s md_file=%s", item_id, md_filename_converted)
-        except Exception as exc:
-            # Любая ошибка
-            logger.exception("Failed to convert item_id=%s", item_id)
-            with db_session(self.session_factory) as session:
-                item = self._get_item(session, item_id)
-                # Сохраняем только короткий текст ошибки, чтобы не переполнять поле в БД трассировкой.
+                # Сохраняем информацию о конвертации
+                self.repository.mark_converted(
+                    item,
+                    md_filename_converted,
+                    text_size,
+                    has_ocr,
+                )
+
+                logger.info(
+                    "Successfully converted item_id=%s md_file=%s",
+                    item_id,
+                    md_filename_converted,
+                )
+
+            except Exception as exc:
+                logger.exception("Failed to convert item_id=%s", item_id)
                 self.repository.mark_convert_error(item, str(exc)[:4000])
 
     def _load_source_meta(self, item_id: int) -> tuple[str, str]:
