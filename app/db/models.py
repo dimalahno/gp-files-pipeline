@@ -226,3 +226,5 @@ class UploadPlanItem(Base):
     has_ocr: Mapped[bool] = mapped_column(Boolean)
     #: MIME-тип сконвертированного файла, сохранённого в S3
     s3_mime_type_converted: Mapped[str | None] = mapped_column(String)
+    # Информация о конвертации
+    s3_info_type_converted: Mapped[str | None] = mapped_column(String)

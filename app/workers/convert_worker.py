@@ -49,7 +49,7 @@ class ItemConvertWorker:
                 logger.info(has_ocr)
                 text_size = self.s3_service.upload_text(object_key_converted, text)
 
-                self.repository.mark_converted(item, filename_converted, text_size, has_ocr)
+                self.repository.mark_converted(item, filename_converted, text_size, has_ocr, "")
 
             logger.info("Successfully converted item_id=%s", item_id)
         except Exception as exc:  # noqa: BLE001

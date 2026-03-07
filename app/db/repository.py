@@ -84,6 +84,7 @@ class UploadPlanItemRepository:
         s3_file_name_converted: str,
         text_size: int,
         has_ocr: bool,
+        info_type_converted: str
     ) -> None:
         """Фиксирует успешную конвертацию и сохраняет метаданные извлеченного текста."""
         item.status = UploadStatus.CONVERTED
@@ -96,12 +97,25 @@ class UploadPlanItemRepository:
         item.convert_attempt_count += 1
         item.next_retry_at = None
         item.version += 1
+        item.s3_info_type_converted = info_type_converted
+
+
+    def mark_not_converted(self, item: UploadPlanItem, info_type_converted: str) -> None:
+        """Фиксирует что файл не подлежит конвертации устанавливаем статус."""
+        item.status = UploadStatus.NOT_CONVERTED
+        item.has_ocr = False
+        item.is_converted = False
+        item.convert_error_message = None
+        item.convert_attempt_count += 1
+        item.next_retry_at = None
+        item.version += 1
+        item.s3_info_type_converted = info_type_converted
 
     def mark_convert_error(self, item: UploadPlanItem, error_text: str) -> None:
         """Регистрирует ошибку конвертации и рассчитывает время следующего ретрая."""
         item.convert_attempt_count += 1
         item.convert_error_message = error_text
-        item.status = UploadStatus.ERROR
+        item.status = UploadStatus.CONVERTED_ERROR
         item.version += 1
 
         if item.convert_attempt_count < self.settings.MAX_CONVERT_ATTEMPTS:
