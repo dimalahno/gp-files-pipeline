@@ -51,7 +51,8 @@ class PlanItemConvertDispatcher:
     def run_once(self) -> int:
         """Выполняет одну итерацию: резервирует задачи и обрабатывает их параллельно."""
         with db_session(self.session_factory) as session:
-            plan_id: int = 21
+            # plan_id: int = 21
+            plan_id: int = 22
             items = self.repository.lock_batch_for_convert(session, plan_id)
             ids = [item.id for item in items]
 

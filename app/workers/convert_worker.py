@@ -87,11 +87,7 @@ class ItemConvertWorker:
                 # Загрузка markdown в s3
                 text_size = self.s3_service.upload_text(object_key_converted, md_content)
 
-                logger.info(
-                    "Successfully uploaded item_id=%s md_file=%s",
-                    item_id,
-                    md_filename_converted,
-                )
+                logger.info("Uploaded item_id=%s md_file=%s",item_id, md_filename_converted,)
 
                 # Сохраняем информацию о конвертации
                 self.repository.mark_converted(
@@ -102,11 +98,7 @@ class ItemConvertWorker:
                     processing_result.payload["data"]
                 )
 
-                logger.info(
-                    "Successfully converted item_id=%s md_file=%s",
-                    item_id,
-                    md_filename_converted,
-                )
+                logger.info("Converted item_id=%s md_file=%s",item_id,md_filename_converted,)
 
             except Exception as exc:
                 logger.exception("Failed to convert item_id=%s", item_id)
