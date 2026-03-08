@@ -99,6 +99,7 @@ class ItemConvertWorker:
                     md_filename_converted,
                     text_size,
                     has_ocr,
+                    processing_result.payload["data"]
                 )
 
                 logger.info(

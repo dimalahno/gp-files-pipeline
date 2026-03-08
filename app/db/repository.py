@@ -59,6 +59,7 @@ class UploadPlanItemRepository:
                 and_(
                     UploadPlanItem.plan_id == plan_id,
                     UploadPlanItem.status == UploadStatus.UPLOADED,
+                    # UploadPlanItem.status.in_([UploadStatus.UPLOADED, UploadStatus.CONVERTED_ERROR]),
                     UploadPlanItem.convert_attempt_count < self.settings.MAX_CONVERT_ATTEMPTS,
                     or_(
                         UploadPlanItem.convert_next_retry_at.is_(None),
@@ -91,7 +92,7 @@ class UploadPlanItemRepository:
         item.status = UploadStatus.CONVERTED
         item.s3_file_name_converted = s3_file_name_converted
         item.converted_text_size = text_size
-        item.s3_mime_type_converted = 'Method…'
+        item.s3_mime_type_converted = 'text/plain'
         item.has_ocr = has_ocr
         item.is_converted = True
         item.convert_error_message = None
