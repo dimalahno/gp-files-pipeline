@@ -161,7 +161,9 @@ class TextProcessingService:
         payload = {"info": doc_info, "data": essential, "method": method, "cleaned": cleaned}
         return TextProcessingResult(converted=True, skip_type=None, payload=payload)
 
-    def generate_markdown(self, doc_info: dict[str, Any], cleaned_text: str, essential_data: dict[str, Any],
+    def generate_markdown(self, doc_info: dict[str, Any],
+                          cleaned_text: str,
+                          essential_data: dict[str, Any],
                           extraction_method: str) -> str:
         lines: list[str] = []
         type_name = DOC_TYPE_NAMES.get(doc_info["type"], doc_info["type"])
@@ -246,6 +248,50 @@ class TextProcessingService:
         lines.append("## Содержание (очищенный текст)")
         lines.append("")
         # В конце очищенный текст
+        lines.append(cleaned_text)
+        lines.append("")
+        return "\n".join(lines)
+
+    def build_converted_markdown(self, doc_info: dict[str, Any],
+                                 cleaned_text: str,
+                                 essential_data: dict[str, Any],
+                                 extraction_method: str) -> str:
+        lines: list[str] = []
+        type_name = DOC_TYPE_NAMES.get(doc_info["type"], doc_info["type"])
+
+        lines.append(f"# {type_name}")
+        lines.append("")
+        lines.append("## Метаданные")
+        lines.append(f"- **Файл:** `{doc_info['filename']}`")
+        lines.append(f"- **Тип:** {type_name}")
+
+        if doc_info["lang"]:
+            lines.append(f"- **Язык:** {LANG_NAMES.get(doc_info['lang'], doc_info['lang'])}")
+        if doc_info["case_number"]:
+            lines.append(f"- **Номер дела ЕРДР:** №{doc_info['case_number']}")
+        if doc_info.get("court_date"):
+            lines.append(f"- **Дата судебного заседания:** {doc_info['court_date']}")
+        if doc_info["timestamp"]:
+            try:
+                ts = int(doc_info["timestamp"]) / 1000
+                lines.append(f"- **Дата создания:** {datetime.fromtimestamp(ts).strftime('%d.%m.%Y %H:%M')}")
+            except (ValueError, OSError):
+                pass
+
+        lines.append(f"- **Извлечение:** {extraction_method}")
+        lines.append("")
+
+        if essential_data:
+            lines.append("## Извлечённые данные")
+            for key, value in essential_data.items():
+                if isinstance(value, list):
+                    lines.append(f"- **{key}:** {', '.join(str(v) for v in value)}")
+                else:
+                    lines.append(f"- **{key}:** {value}")
+            lines.append("")
+
+        lines.append("## Содержание (очищенный текст)")
+        lines.append("")
         lines.append(cleaned_text)
         lines.append("")
         return "\n".join(lines)
@@ -730,50 +776,3 @@ def _extract_detention_data(text: str) -> dict[str, Any]:
         data["detention_location"] = match.group(1).strip()
 
     return data
-
-
-def build_converted_txt_payload(filename: str, text: str) -> tuple[str, int]:
-    body = text.strip()
-    return body, len(body.encode("utf-8"))
-
-
-def build_converted_markdown(doc_info: dict[str, Any], cleaned_text: str, essential_data: dict[str, Any], extraction_method: str) -> str:
-    lines: list[str] = []
-    type_name = DOC_TYPE_NAMES.get(doc_info["type"], doc_info["type"])
-
-    lines.append(f"# {type_name}")
-    lines.append("")
-    lines.append("## Метаданные")
-    lines.append(f"- **Файл:** `{doc_info['filename']}`")
-    lines.append(f"- **Тип:** {type_name}")
-
-    if doc_info["lang"]:
-        lines.append(f"- **Язык:** {LANG_NAMES.get(doc_info['lang'], doc_info['lang'])}")
-    if doc_info["case_number"]:
-        lines.append(f"- **Номер дела ЕРДР:** №{doc_info['case_number']}")
-    if doc_info.get("court_date"):
-        lines.append(f"- **Дата судебного заседания:** {doc_info['court_date']}")
-    if doc_info["timestamp"]:
-        try:
-            ts = int(doc_info["timestamp"]) / 1000
-            lines.append(f"- **Дата создания:** {datetime.fromtimestamp(ts).strftime('%d.%m.%Y %H:%M')}")
-        except (ValueError, OSError):
-            pass
-
-    lines.append(f"- **Извлечение:** {extraction_method}")
-    lines.append("")
-
-    if essential_data:
-        lines.append("## Извлечённые данные")
-        for key, value in essential_data.items():
-            if isinstance(value, list):
-                lines.append(f"- **{key}:** {', '.join(str(v) for v in value)}")
-            else:
-                lines.append(f"- **{key}:** {value}")
-        lines.append("")
-
-    lines.append("## Содержание (очищенный текст)")
-    lines.append("")
-    lines.append(cleaned_text)
-    lines.append("")
-    return "\n".join(lines)

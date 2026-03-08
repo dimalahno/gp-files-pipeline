@@ -72,6 +72,7 @@ class UploadPlanItemRepository:
         )
         items = list(session.scalars(stmt))
 
+        # В состоянии конвертации
         for item in items:
             item.status = UploadStatus.CONVERTING
             item.convert_error_message = None
@@ -104,7 +105,7 @@ class UploadPlanItemRepository:
         """Фиксирует что файл не подлежит конвертации устанавливаем статус."""
         item.status = UploadStatus.NOT_CONVERTED
         item.has_ocr = False
-        item.is_converted = False
+        item.is_converted = True
         item.convert_error_message = None
         item.convert_attempt_count += 1
         item.next_retry_at = None
@@ -116,6 +117,7 @@ class UploadPlanItemRepository:
         item.convert_attempt_count += 1
         item.convert_error_message = error_text
         item.status = UploadStatus.CONVERTED_ERROR
+        item.is_converted = True
         item.version += 1
 
         if item.convert_attempt_count < self.settings.MAX_CONVERT_ATTEMPTS:
