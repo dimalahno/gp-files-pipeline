@@ -21,7 +21,8 @@ class TextExtractionService:
         """Извлекает текст из файла, возвращая текст, число страниц и признак OCR."""
         ext = Path(filename).suffix.lower()
         if ext == ".pdf":
-            return self.pdf_extractor.extract(raw_file)
+            # return self.pdf_extractor.extract(raw_file)
+            return self.pdf_extractor.extract_fitz(raw_file)
         if ext in {".doc", ".docx"}:
             return self.doc_extractor.extract(raw_file, ext)
         raise RuntimeError(f"Unsupported file extension: {ext}")

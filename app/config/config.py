@@ -29,10 +29,10 @@ class Settings(BaseSettings):
     DISPATCHER_INTERVAL_SECONDS: int = 5
     DISPATCHER_BATCH_SIZE: int = 5
     MAX_CONVERT_ATTEMPTS: int = 5
-    WORKER_THREADS: int = 2
+    WORKER_THREADS: int = 4
 
     TEXT_SUCCESS_THRESHOLD: int = 50
-    OCR_LANGS: str = "rus+kaz+eng"
+    OCR_LANGS: str = "rus+kaz"
 
     DEBUG_MODE: bool = True
 

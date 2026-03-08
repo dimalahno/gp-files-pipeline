@@ -17,6 +17,11 @@ import sys
 import fitz  # PyMuPDF
 from datetime import datetime
 from collections import defaultdict
+import pytesseract
+from PIL import Image
+import io
+import zipfile
+from xml.etree import ElementTree
 
 # --- Настройки ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -183,9 +188,6 @@ def extract_text_pdf(pdf_path):
         doc.close()
         return text.strip(), "text"
     try:
-        import pytesseract
-        from PIL import Image
-        import io
         ocr_text = ""
         for page_num in range(len(doc)):
             page = doc[page_num]
@@ -204,8 +206,6 @@ def extract_text_pdf(pdf_path):
 
 def extract_text_docx(docx_path):
     try:
-        import zipfile
-        from xml.etree import ElementTree
         z = zipfile.ZipFile(docx_path)
         doc_xml = z.read("word/document.xml")
         tree = ElementTree.fromstring(doc_xml)

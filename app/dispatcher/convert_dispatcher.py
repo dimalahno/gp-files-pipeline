@@ -59,6 +59,9 @@ class PlanItemConvertDispatcher:
         for future in futures:
             future.result()
 
+        # for item_id in ids:
+        #     self.pool.submit(self.worker.process, item_id)
+
         if ids:
             logger.info("Dispatched %s items for conversion", len(ids))
         return len(ids)
