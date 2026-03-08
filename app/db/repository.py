@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta
 
 from sqlalchemy import and_, func, or_, select
@@ -86,7 +87,7 @@ class UploadPlanItemRepository:
         s3_file_name_converted: str,
         text_size: int,
         has_ocr: bool,
-        info_type_converted: str
+        info_type_converted: dict | list | str | None,
     ) -> None:
         """Фиксирует успешную конвертацию и сохраняет метаданные извлеченного текста."""
         item.status = UploadStatus.CONVERTED
@@ -99,7 +100,7 @@ class UploadPlanItemRepository:
         item.convert_attempt_count += 1
         item.next_retry_at = None
         item.version += 1
-        item.s3_info_type_converted = info_type_converted
+        item.s3_info_type_converted = self._serialize_info_type(info_type_converted)
 
 
     def mark_not_converted(self, item: UploadPlanItem, payload: str) -> None:
@@ -112,6 +113,15 @@ class UploadPlanItemRepository:
         item.next_retry_at = None
         item.version += 1
         item.s3_info_type_converted = payload
+
+    @staticmethod
+    def _serialize_info_type(info_type: dict | list | str | None) -> str | None:
+        """Преобразует мета-информацию о типе контента в строку для сохранения в БД."""
+        if info_type is None:
+            return None
+        if isinstance(info_type, str):
+            return info_type
+        return json.dumps(info_type, ensure_ascii=False)
 
     def mark_convert_error(self, item: UploadPlanItem, error_text: str) -> None:
         """Регистрирует ошибку конвертации и рассчитывает время следующего ретрая."""
