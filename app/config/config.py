@@ -27,9 +27,9 @@ class Settings(BaseSettings):
     MINIO_REGION: str = "us-east-1"
 
     DISPATCHER_INTERVAL_SECONDS: int = 5
-    DISPATCHER_BATCH_SIZE: int = 5
+    DISPATCHER_BATCH_SIZE: int = 20
     MAX_CONVERT_ATTEMPTS: int = 5
-    WORKER_THREADS: int = 4
+    WORKER_THREADS: int = 5
 
     TEXT_SUCCESS_THRESHOLD: int = 50
     OCR_LANGS: str = "rus+kaz"
