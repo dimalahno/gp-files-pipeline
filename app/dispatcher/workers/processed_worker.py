@@ -84,11 +84,12 @@ class ItemProcessedWorker:
                 )
 
                 # Загрузка markdown в s3
-                text_index_size = self.s3_service.upload_text(object_key_processed_index, index_file)
-                text_index_size = self.s3_service.upload_text(object_key_processed_summary, summary_file)
+                self.s3_service.upload_text(object_key_processed_index, index_file)
+                self.s3_service.upload_text(object_key_processed_summary, summary_file)
 
                 # Сохраняем информацию об файлах индексе и справке
-                self.item_repository.created_processed()
+                self.item_repository.created_processed(session, items[0], index_md_filename)
+                self.item_repository.created_processed(session, items[0], summary_md_filename)
 
                 self._mark_completed(plan)
                 logger.info("Successfully processed plan_id=%s", plan_id)
