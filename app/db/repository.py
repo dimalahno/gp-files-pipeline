@@ -1,13 +1,20 @@
 from __future__ import annotations
 
 import json
+import uuid
 from datetime import datetime, timedelta
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.config.config import Settings
-from app.db.models import UploadPlan, UploadPlanItem, UploadPlanStatus, UploadStatus
+from app.db.models import (
+    UploadPlan,
+    UploadPlanItem,
+    UploadPlanItemFilePathType,
+    UploadPlanStatus,
+    UploadStatus,
+)
 
 
 class UploadPlanRepository:
@@ -97,8 +104,70 @@ class UploadPlanItemRepository:
         item.s3_info_type_converted = self._serialize_info_type(info_type_converted)
 
 
-    def created_processed(self,) -> None:
-        """Создаёт новый UploadPlanItem со статусом PROCESSED."""
+    def created_processed(
+        self,
+        session: Session,
+        source_item: UploadPlanItem,
+        processed_file_name: str,
+    ) -> UploadPlanItem:
+        """Создаёт новый UploadPlanItem со статусом PROCESSED на основе исходного элемента."""
+        now = datetime.now()
+        processed_item = UploadPlanItem(
+            plan_id=source_item.plan_id,
+            case_no=source_item.case_no,
+            registry_id=source_item.registry_id,
+            file_identifier=str(uuid.uuid4()),
+            request_identifier=source_item.request_identifier,
+            te2_card_id=source_item.te2_card_id,
+            jsr_path=source_item.jsr_path,
+            order_index=source_item.order_index,
+            document_name=source_item.document_name,
+            doc_type_id=source_item.doc_type_id,
+            doc_type_code=source_item.doc_type_code,
+            doc_type_name_ru=source_item.doc_type_name_ru,
+            doc_type_name_kk=source_item.doc_type_name_kk,
+            doc_spec_id=source_item.doc_spec_id,
+            doc_spec_code=source_item.doc_spec_code,
+            doc_spec_name_ru=source_item.doc_spec_name_ru,
+            doc_spec_name_kk=source_item.doc_spec_name_kk,
+            qualification_id=source_item.qualification_id,
+            qualification_code=source_item.qualification_code,
+            qualification_name_ru=source_item.qualification_name_ru,
+            qualification_name_kk=source_item.qualification_name_kk,
+            send_date=source_item.send_date,
+            s3_main_prefix=source_item.s3_main_prefix,
+            s3_file_path_original=source_item.s3_file_path_original,
+            s3_file_name_original=source_item.s3_file_name_original,
+            s3_file_ext_original=source_item.s3_file_ext_original,
+            s3_mime_type_original=source_item.s3_mime_type_original,
+            s3_file_path_converted=source_item.s3_file_path_converted,
+            s3_file_name_converted=source_item.s3_file_name_converted,
+            s3_file_path_processed=UploadPlanItemFilePathType.PROCESSED,
+            s3_file_name_processed=processed_file_name,
+            status=UploadStatus.PROCESSED,
+            status_changed_at=now,
+            error_message=None,
+            created_at=now,
+            updated_at=now,
+            jr_file_exist=source_item.jr_file_exist,
+            jr_file_size=source_item.jr_file_size,
+            jr_mime_type=source_item.jr_mime_type,
+            version=0,
+            attempt_count=0,
+            next_retry_at=None,
+            is_uploaded=True,
+            is_converted=True,
+            is_processed=True,
+            convert_attempt_count=source_item.convert_attempt_count,
+            convert_next_retry_at=None,
+            convert_error_message=None,
+            converted_text_size=source_item.converted_text_size,
+            has_ocr=source_item.has_ocr,
+            s3_mime_type_converted=source_item.s3_mime_type_converted,
+            s3_info_type_converted=source_item.s3_info_type_converted,
+        )
+        session.add(processed_item)
+        return processed_item
 
     def mark_not_converted(self, item: UploadPlanItem, payload: str) -> None:
         """Фиксирует что файл не подлежит конвертации устанавливаем статус."""
