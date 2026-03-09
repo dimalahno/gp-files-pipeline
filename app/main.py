@@ -30,21 +30,21 @@ async def lifespan(app: FastAPI):
     s3_service = S3Service(app_settings)
     extraction_service = TextExtractionService(app_settings)
     text_processing_service = TextProcessingService()
-    worker = ItemConvertWorker(
+    worker_convert = ItemConvertWorker(
         session_factory,
         repository,
         s3_service,
         extraction_service,
         text_processing_service,
     )
-    dispatcher = PlanItemConvertDispatcher(app_settings, session_factory, repository, worker)
+    dispatcher_convert = PlanItemConvertDispatcher(app_settings, session_factory, repository, worker_convert)
 
-    app.state.dispatcher = dispatcher
-    dispatcher.start()
+    app.state.dispatcher = dispatcher_convert
+    dispatcher_convert.start()
     try:
         yield
     finally:
-        dispatcher.stop()
+        dispatcher_convert.stop()
 
 
 settings = get_settings()
