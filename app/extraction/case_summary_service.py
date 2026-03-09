@@ -3,6 +3,28 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
+DOC_TYPE_NAMES = {
+    "decree": "Постановление",
+    "protocol": "Протокол допроса",
+    "report_erdr": "Рапорт ЕРДР",
+    "report_kui": "Рапорт КУИ",
+    "court_ruling": "Протокол судебного заседания",
+    # Подтипы "other" — существенные
+    "detention_notice": "Уведомление о задержании",
+    "counsel_notice": "Уведомление о защитнике",
+    "case_acceptance": "Принятие дела к производству",
+    "seizure_decree": "Постановление о выемке",
+    "legal_aid_request": "Ходатайство о юр. помощи",
+    "other": "Иной документ",
+    # Пропускаемые (для отчёта)
+    "obligation": "Обязательство о явке [ПРОПУЩЕНО]",
+    "language_statement": "Заявление о языке [ПРОПУЩЕНО]",
+    "format_statement": "Заявление о формате [ПРОПУЩЕНО]",
+    "rights_explanation": "Разъяснение прав [ПРОПУЩЕНО]",
+    "empty": "Пустой документ [ПРОПУЩЕНО]",
+    "admin_form": "Адм. форма [ПРОПУЩЕНО]",
+    "phototable_embedded": "Фототаблица [ПРОПУЩЕНО]",
+}
 
 def _normalize_fio_key(fio):
     """Создаёт нормализованный ключ для сравнения OCR-дублей ФИО."""

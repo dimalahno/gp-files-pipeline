@@ -483,7 +483,7 @@ def _deduplicate_fio(fio_collection):
     return result
 
 
-def extract_essential_data(text, doc_type, lang, cleaned_text=None):
+def extract_essential_data(text, doc_type, cleaned_text=None):
     """Извлечение ключевых данных. cleaned_text — текст после удаления boilerplate."""
     data = {}
     ct = cleaned_text or text  # cleaned для показаний/описаний
@@ -1205,7 +1205,7 @@ def main():
 
         # 5. Очистка + извлечение данных
         cleaned = clean_text(raw_text)
-        essential = extract_essential_data(raw_text, doc_info["type"], doc_info["lang"], cleaned)
+        essential = extract_essential_data(raw_text, doc_info["type"], cleaned)
 
         # 6. Генерация Markdown
         md_content = generate_markdown(doc_info, cleaned, essential, method)

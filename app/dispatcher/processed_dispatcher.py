@@ -56,7 +56,8 @@ class PlanItemProcessedDispatcher:
         2. Обрабатывает каждый план строго последовательно
         """
         with db_session(self.session_factory) as session:
-            plans = self.plan_repository.find_converted_plans(session)
+            # plans = self.plan_repository.find_converted_plans(session)
+            plans = self.plan_repository.find_converted_plan_by_id(session, 21)
             plan_ids = [plan.id for plan in plans]
 
         processed_count = 0
@@ -78,6 +79,7 @@ class PlanItemProcessedDispatcher:
         while not self.stop_event.is_set():
             try:
                 self.run_once()
+                logger.info("Processed processed_dispatcher loop")
             except Exception:
                 logger.exception("Processed dispatcher loop failed")
 

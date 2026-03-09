@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 import logging
+import uuid
+from typing import Dict
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
@@ -10,6 +13,7 @@ from app.db.repository import UploadPlanItemRepository
 from app.db.session import db_session
 from app.extraction.case_summary_service import generate_case_summary
 from app.extraction.index_document_service import generate_index_document
+from app.storage.s3_client import S3Service
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +29,11 @@ class ItemProcessedWorker:
         self,
         session_factory: sessionmaker[Session],
         item_repository: UploadPlanItemRepository,
-        processed_service,
+        s3_service: S3Service,
     ):
         self.session_factory = session_factory
         self.item_repository = item_repository
-        self.processed_service = processed_service
+        self.s3_service = s3_service
 
     def process_processing(self, plan_id: int) -> None:
         """
@@ -54,14 +58,37 @@ class ItemProcessedWorker:
 
                 for item in items:
                     if item.status == UploadStatus.CONVERTED:
-                        all_docs.append(item.s3_info_type_converted)
+                        all_docs.append(self._str_to_dict(item.s3_info_type_converted))
                     if item.status == UploadStatus.NOT_CONVERTED:
-                        skipped_docs.append(item.s3_info_type_converted)
+                        skipped_docs.append(self._str_to_dict(item.s3_info_type_converted))
 
                 index_file: str = generate_index_document(all_docs, skipped_docs)
                 summary_file: str = generate_case_summary(all_docs)
 
-                # self._mark_completed(plan)
+                # Новое имя markdown файла
+                index_uid = uuid.uuid4()
+                summary_uid = uuid.uuid4()
+                index_md_filename = f"index_{plan.case_no}_{str(index_uid)}.md"
+                summary_md_filename = f"summary_{plan.case_no}_{str(summary_uid)}.md"
+
+                object_key_processed_index = (
+                    f"{item.s3_main_prefix}"
+                    f"{item.s3_file_path_processed.value}/"
+                    f"{index_md_filename}"
+                )
+
+                object_key_processed_summary = (
+                    f"{item.s3_main_prefix}"
+                    f"{item.s3_file_path_processed.value}/"
+                    f"{summary_md_filename}"
+                )
+
+                # Загрузка markdown в s3
+                text_index_size = self.s3_service.upload_text(object_key_processed_index, index_file)
+                text_index_size = self.s3_service.upload_text(object_key_processed_summary, summary_file)
+
+
+                self._mark_completed(plan)
                 logger.info("Successfully processed plan_id=%s", plan_id)
 
         except Exception as exc:
@@ -87,3 +114,7 @@ class ItemProcessedWorker:
         """Переводит план в статус COMPLETED."""
         plan.status = UploadPlanStatus.COMPLETED
         plan.last_error = None
+
+    @staticmethod
+    def _str_to_dict(data: str) -> Dict[str, str]:
+        return json.loads(data)

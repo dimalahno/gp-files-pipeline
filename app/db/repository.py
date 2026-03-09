@@ -12,11 +12,24 @@ from app.db.models import UploadPlan, UploadPlanItem, UploadPlanStatus, UploadSt
 
 class UploadPlanRepository:
     """Репозиторий для работы с агрегированным состоянием плана загрузки."""
+
     def find_converted_plans(self, session: Session) -> list[UploadPlan]:
         """Возвращает все планы со статусом CONVERTED."""
         stmt = (
             select(UploadPlan)
             .where(UploadPlan.status == UploadPlanStatus.CONVERTED)
+            .order_by(UploadPlan.id.asc())
+        )
+        return list(session.scalars(stmt))
+
+    def find_converted_plan_by_id(self, session: Session, plan_id: int) -> list[UploadPlan]:
+        """Возвращает все планы со статусом CONVERTED."""
+        stmt = (
+            select(UploadPlan)
+            .where(
+                and_(UploadPlan.id == plan_id,
+                     UploadPlan.status == UploadPlanStatus.CONVERTED)
+            )
             .order_by(UploadPlan.id.asc())
         )
         return list(session.scalars(stmt))
@@ -63,12 +76,12 @@ class UploadPlanItemRepository:
         return items
 
     def mark_converted(
-        self,
-        item: UploadPlanItem,
-        s3_file_name_converted: str,
-        text_size: int,
-        has_ocr: bool,
-        info_type_converted: dict | list | str | None,
+            self,
+            item: UploadPlanItem,
+            s3_file_name_converted: str,
+            text_size: int,
+            has_ocr: bool,
+            info_type_converted: dict | list | str | None,
     ) -> None:
         """Фиксирует успешную конвертацию и сохраняет метаданные извлеченного текста."""
         item.status = UploadStatus.CONVERTED
@@ -82,7 +95,6 @@ class UploadPlanItemRepository:
         item.next_retry_at = None
         item.version += 1
         item.s3_info_type_converted = self._serialize_info_type(info_type_converted)
-
 
     def mark_not_converted(self, item: UploadPlanItem, payload: str) -> None:
         """Фиксирует что файл не подлежит конвертации устанавливаем статус."""

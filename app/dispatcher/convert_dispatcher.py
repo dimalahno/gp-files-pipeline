@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.config.config import Settings
 from app.db.repository import UploadPlanItemRepository
 from app.db.session import db_session
-from app.dispatcher.workers import ItemConvertWorker
+from app.dispatcher.workers.convert_worker import ItemConvertWorker
 
 logger = logging.getLogger(__name__)
 

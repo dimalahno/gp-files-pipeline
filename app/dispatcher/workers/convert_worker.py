@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
+from typing import Dict
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
@@ -43,10 +45,10 @@ class ItemConvertWorker:
                 object_key, filename = self._load_source_item_meta(item)
 
                 # Пропуск по типу файла
-                doc_info_type, skipped = self.text_processing_service.precheck(filename)
-                if skipped is not None and not skipped.converted:
+                skipped = self.text_processing_service.precheck(filename)
+                if skipped is not None:
                     logger.info("Skipping item_id=%s file_name=%s", item_id, filename)
-                    self.repository.mark_not_converted(item=item, payload=skipped.to_json())
+                    self.repository.mark_not_converted(item=item, payload=self._dict_to_str(skipped))
                     return
 
                 # Загружаем файл из s3 для конвертации
@@ -62,10 +64,9 @@ class ItemConvertWorker:
                     text,
                     method_extracted,
                 )
-
                 if not processing_result.converted:
                     logger.info("Skipping item_id=%s file_name=%s", item_id, filename)
-                    self.repository.mark_not_converted(item=item, payload=processing_result.to_json())
+                    self.repository.mark_not_converted(item=item, payload=self._dict_to_str(processing_result.payload))
                     return
 
                 # Новое имя markdown файла
@@ -90,12 +91,14 @@ class ItemConvertWorker:
                 logger.info("Uploaded item_id=%s md_file=%s",item_id, md_filename_converted,)
 
                 # Сохраняем информацию о конвертации
+                processing_result.payload.pop("cleaned", None)
+                payload = self._dict_to_str(processing_result.payload)
                 self.repository.mark_converted(
                     item,
                     md_filename_converted,
                     text_size,
                     has_ocr,
-                    processing_result.payload["data"]
+                    payload
                 )
 
                 logger.info("Converted item_id=%s md_file=%s",item_id,md_filename_converted,)
@@ -145,4 +148,7 @@ class ItemConvertWorker:
         base, _ = os.path.splitext(file_name)
         return base + ".md"
 
+    @staticmethod
+    def _dict_to_str(data: Dict[str, str]) -> str:
+        return json.dumps(data, ensure_ascii=False)
 

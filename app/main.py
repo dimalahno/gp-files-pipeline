@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
     worker_processed = ItemProcessedWorker(
         session_factory,
         repository,
-        processed_service=None,
+        s3_service,
     )
     dispatcher_convert = PlanItemConvertDispatcher(app_settings, session_factory, repository, worker_convert)
     dispatcher_processed = PlanItemProcessedDispatcher(

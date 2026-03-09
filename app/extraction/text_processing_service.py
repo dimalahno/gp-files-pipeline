@@ -109,31 +109,19 @@ class TextProcessingResult:
     skip_type: str | None
     payload: dict[str, Any]
 
-    def to_json(self) -> str:
-        return json.dumps(
-            self.payload,
-            ensure_ascii=False,
-            separators=(",", ":"),
-        )
-
 
 class TextProcessingService:
 
 
-    def precheck(self, filename: str) -> tuple[dict[str, str], TextProcessingResult | None]:
+    def precheck(self, filename: str) -> dict[str, str] | None:
         """# 1. Классификация по имени"""
 
         doc_info_type = classify_by_filename(filename)
 
         if doc_info_type["type"] in SKIP_FILE_TYPES:
-            payload = self._build_skip_payload(skip_type=doc_info_type["type"], filename=filename)
-            return doc_info_type, TextProcessingResult(
-                converted=False,
-                skip_type=doc_info_type["type"],
-                payload=payload,
-            )
-
-        return doc_info_type, None
+            skipped = {"type": doc_info_type["type"], "filename": filename}
+            return skipped
+        return None
 
     @staticmethod
     def _build_skip_payload(skip_type: str, filename: str) -> dict[str, Any]:
