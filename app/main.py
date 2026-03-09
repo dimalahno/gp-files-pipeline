@@ -8,12 +8,15 @@ from app.api.routes import router
 from app.config.config import get_settings
 from app.config.logging import setup_logging
 from app.db.repository import UploadPlanItemRepository
+from app.db.repository import UploadPlanRepository
 from app.db.session import build_session_factory
 from app.dispatcher.convert_dispatcher import PlanItemConvertDispatcher
+from app.dispatcher.processed_dispatcher import PlanItemProcessedDispatcher
+from app.dispatcher.workers.convert_worker import ItemConvertWorker
+from app.dispatcher.workers.processed_worker import ItemProcessedWorker
 from app.extraction.text_extraction_service import TextExtractionService
 from app.extraction.text_processing_service import TextProcessingService
 from app.storage.s3_client import S3Service
-from app.dispatcher.workers import ItemConvertWorker
 
 # Настройка логирования
 setup_logging()
@@ -27,6 +30,7 @@ async def lifespan(app: FastAPI):
     session_factory = build_session_factory(app_settings)
 
     repository = UploadPlanItemRepository(app_settings)
+    plan_repository = UploadPlanRepository()
     s3_service = S3Service(app_settings)
     extraction_service = TextExtractionService(app_settings)
     text_processing_service = TextProcessingService()
@@ -37,14 +41,28 @@ async def lifespan(app: FastAPI):
         extraction_service,
         text_processing_service,
     )
+    worker_processed = ItemProcessedWorker(
+        session_factory,
+        repository,
+        processed_service=None,
+    )
     dispatcher_convert = PlanItemConvertDispatcher(app_settings, session_factory, repository, worker_convert)
+    dispatcher_processed = PlanItemProcessedDispatcher(
+        app_settings,
+        session_factory,
+        plan_repository,
+        worker_processed,
+    )
 
     app.state.dispatcher = dispatcher_convert
+    app.state.dispatcher_processed = dispatcher_processed
     dispatcher_convert.start()
+    dispatcher_processed.start()
     try:
         yield
     finally:
         dispatcher_convert.stop()
+        dispatcher_processed.stop()
 
 
 settings = get_settings()
