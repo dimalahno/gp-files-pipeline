@@ -12,37 +12,19 @@ from app.db.models import UploadPlan, UploadPlanItem, UploadPlanStatus, UploadSt
 
 class UploadPlanRepository:
     """Репозиторий для работы с агрегированным состоянием плана загрузки."""
-
-    def lock_by_id(self, session: Session, plan_id: int) -> UploadPlan | None:
-        """Возвращает план по идентификатору с блокировкой строки для безопасного обновления."""
-        stmt = select(UploadPlan).where(UploadPlan.id == plan_id).with_for_update(skip_locked=True)
-        return session.scalar(stmt)
-
-    def mark_processing(self, plan: UploadPlan) -> None:
-        """Переводит план в статус PROCESSING и сбрасывает ошибку уровня плана."""
-        plan.status = UploadPlanStatus.PROCESSING
-        plan.last_error = None
+    def find_converted_plans(self, session: Session) -> list[UploadPlan]:
+        """Возвращает все планы со статусом CONVERTED."""
+        stmt = (
+            select(UploadPlan)
+            .where(UploadPlan.status == UploadPlanStatus.CONVERTED)
+            .order_by(UploadPlan.id.asc())
+        )
+        return list(session.scalars(stmt))
 
     def mark_completed(self, plan: UploadPlan) -> None:
-        """Помечает план как полностью успешно завершённый."""
+        """Переводит план в статус COMPLETED и сбрасывает ошибку уровня плана."""
         plan.status = UploadPlanStatus.COMPLETED
         plan.last_error = None
-
-    def mark_completed_with_errors(self, plan: UploadPlan, error_text: str | None = None) -> None:
-        """Помечает план как завершённый с ошибками и сохраняет сообщение об ошибке."""
-        plan.status = UploadPlanStatus.COMPLETED_WITH_ERRORS
-        plan.last_error = error_text
-
-    def mark_failed(self, plan: UploadPlan, error_text: str) -> None:
-        """Помечает план как неуспешно завершённый на уровне всего плана."""
-        plan.status = UploadPlanStatus.FAILED
-        plan.last_error = error_text
-
-    def recalculate_counters(self, plan: UploadPlan, items: list[UploadPlanItem]) -> None:
-        """Пересчитывает агрегированные счётчики плана на основании списка элементов."""
-        plan.total_items = len(items)
-        plan.done_items = sum(1 for item in items if item.status in {UploadStatus.UPLOADED, UploadStatus.CONVERTED, UploadStatus.PROCESSED})
-        plan.failed_items = sum(1 for item in items if item.status == UploadStatus.ERROR)
 
 
 class UploadPlanItemRepository:
@@ -135,3 +117,20 @@ class UploadPlanItemRepository:
             item.next_retry_at = datetime.now() + timedelta(seconds=backoff_seconds)
         else:
             item.next_retry_at = None
+
+    def find_converted_items(self, session: Session, plan_id: int) -> list[UploadPlanItem]:
+        """Возвращает элементы плана со статусами CONVERTED и NOT_CONVERTED."""
+        stmt = (
+            select(UploadPlanItem)
+            .where(
+                UploadPlanItem.plan_id == plan_id,
+                UploadPlanItem.status.in_(
+                    [
+                        UploadStatus.CONVERTED,
+                        UploadStatus.NOT_CONVERTED,
+                    ]
+                ),
+            )
+            .order_by(UploadPlanItem.id.asc())
+        )
+        return list(session.scalars(stmt))
