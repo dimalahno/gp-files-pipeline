@@ -96,6 +96,10 @@ class UploadPlanItemRepository:
         item.version += 1
         item.s3_info_type_converted = self._serialize_info_type(info_type_converted)
 
+
+    def created_processed(self,) -> None:
+        """Создаёт новый UploadPlanItem со статусом PROCESSED."""
+
     def mark_not_converted(self, item: UploadPlanItem, payload: str) -> None:
         """Фиксирует что файл не подлежит конвертации устанавливаем статус."""
         item.status = UploadStatus.NOT_CONVERTED
