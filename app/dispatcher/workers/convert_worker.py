@@ -34,7 +34,7 @@ class ItemConvertWorker:
         self.extraction_service = extraction_service
         self.text_processing_service = text_processing_service
 
-    def process(self, item_id: int) -> None:
+    def process_convert(self, item_id: int) -> None:
         """Обрабатывает один элемент плана конвертации по его идентификатору."""
         with db_session(self.session_factory) as session:
             item = self._get_item(session, item_id)

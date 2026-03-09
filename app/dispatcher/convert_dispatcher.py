@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.config.config import Settings
 from app.db.repository import UploadPlanItemRepository
 from app.db.session import db_session
-from app.workers.convert_worker import ItemConvertWorker
+from app.dispatcher.workers import ItemConvertWorker
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ class PlanItemConvertDispatcher:
             items = self.repository.lock_batch_for_convert(session, plan_id)
             ids = [item.id for item in items]
 
-        futures: list[Future] = [self.pool.submit(self.worker.process, item_id) for item_id in ids]
+        futures: list[Future] = [self.pool.submit(self.worker.process_convert, item_id) for item_id in ids]
         for future in futures:
             future.result()
 

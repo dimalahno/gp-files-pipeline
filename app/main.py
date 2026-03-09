@@ -13,7 +13,7 @@ from app.dispatcher.convert_dispatcher import PlanItemConvertDispatcher
 from app.extraction.text_extraction_service import TextExtractionService
 from app.extraction.text_processing_service import TextProcessingService
 from app.storage.s3_client import S3Service
-from app.workers.convert_worker import ItemConvertWorker
+from app.dispatcher.workers import ItemConvertWorker
 
 # Настройка логирования
 setup_logging()

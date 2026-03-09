@@ -1,6 +1,7 @@
 import re
 from collections import defaultdict
 from datetime import datetime
+from typing import Any
 
 
 def _normalize_fio_key(fio):
@@ -103,7 +104,7 @@ def _ts_to_date(ts_str):
         return ""
 
 
-def generate_case_summary(all_docs, doc_type_names):
+def generate_case_summary(all_docs: list[Any]) -> str:
     """Генерирует сводную справку по делу из обработанных документов."""
     cases = defaultdict(list)
     for doc in all_docs:
@@ -220,7 +221,7 @@ def generate_case_summary(all_docs, doc_type_names):
                 data = doc["data"]
                 info = doc["info"]
                 date_str = _ts_to_date(info["timestamp"])
-                lines.append(f"**{doc_type_names.get(info['type'], info['type'])}** ({date_str})")
+                lines.append(f"**{DOC_TYPE_NAMES.get(info['type'], info['type'])}** ({date_str})")
                 if data.get("description"):
                     lines.append(f"> {data['description'][:500]}")
                 lines.append("")
