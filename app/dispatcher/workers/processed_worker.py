@@ -66,10 +66,10 @@ class ItemProcessedWorker:
                 summary_file: str = generate_case_summary(all_docs)
 
                 # Новое имя markdown файла
-                index_uid = uuid.uuid4()
-                summary_uid = uuid.uuid4()
-                index_md_filename = f"index_{plan.case_no}_{str(index_uid)}.md"
-                summary_md_filename = f"summary_{plan.case_no}_{str(summary_uid)}.md"
+                index_uid = self._generate_uuid()
+                summary_uid = self._generate_uuid()
+                index_md_filename = f"index_{plan.case_no}_{index_uid}.md"
+                summary_md_filename = f"summary_{plan.case_no}_{summary_uid}.md"
 
                 object_key_processed_index = (
                     f"{item.s3_main_prefix}"
@@ -88,8 +88,8 @@ class ItemProcessedWorker:
                 self.s3_service.upload_text(object_key_processed_summary, summary_file)
 
                 # Сохраняем информацию об файлах индексе и справке
-                self.item_repository.created_processed(session, items[0], index_md_filename)
-                self.item_repository.created_processed(session, items[0], summary_md_filename)
+                self.item_repository.created_processed(session, items[0], index_uid, index_md_filename)
+                self.item_repository.created_processed(session, items[0], summary_uid, summary_md_filename)
 
                 self._mark_completed(plan)
                 logger.info("Successfully processed plan_id=%s", plan_id)
@@ -121,3 +121,7 @@ class ItemProcessedWorker:
     @staticmethod
     def _str_to_dict(data: str) -> Dict[str, str]:
         return json.loads(data)
+
+    @staticmethod
+    def _generate_uuid() -> str:
+        return str(uuid.uuid4())
