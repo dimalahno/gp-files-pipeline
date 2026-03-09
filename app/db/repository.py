@@ -60,7 +60,6 @@ class UploadPlanItemRepository:
                 and_(
                     UploadPlanItem.plan_id == plan_id,
                     UploadPlanItem.status == UploadStatus.UPLOADED,
-                    # UploadPlanItem.status.in_([UploadStatus.UPLOADED, UploadStatus.CONVERTED_ERROR]),
                     UploadPlanItem.convert_attempt_count < self.settings.MAX_CONVERT_ATTEMPTS,
                     or_(
                         UploadPlanItem.convert_next_retry_at.is_(None),
