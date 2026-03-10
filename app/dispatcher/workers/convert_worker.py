@@ -42,6 +42,7 @@ class ItemConvertWorker:
             item = self._get_item(session, item_id)
 
             try:
+                logger.info("Converting item_id=%s in plan_id=%s file_uuid=%s", item.id, item.plan_id, item.file_identifier,)
                 object_key, filename = self._load_source_item_meta(item)
 
                 # Пропуск по типу файла

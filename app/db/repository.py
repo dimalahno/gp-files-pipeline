@@ -54,7 +54,34 @@ class UploadPlanItemRepository:
         """Сохраняет настройки лимитов и параметров ретраев для операций репозитория."""
         self.settings = settings
 
-    def lock_batch_for_convert(self, session: Session, plan_id: int) -> list[UploadPlanItem]:
+    def lock_batch_for_convert(self, session: Session) -> list[UploadPlanItem]:
+        """Блокирует пачку готовых к конвертации записей и переводит их в CONVERTING."""
+        stmt = (
+            select(UploadPlanItem)
+            .where(
+                and_(
+                    UploadPlanItem.status == UploadStatus.UPLOADED,
+                    UploadPlanItem.convert_attempt_count < self.settings.MAX_CONVERT_ATTEMPTS,
+                    or_(
+                        UploadPlanItem.convert_next_retry_at.is_(None),
+                        UploadPlanItem.convert_next_retry_at < func.now(),
+                    ),
+                )
+            )
+            .order_by(UploadPlanItem.id.asc())
+            .limit(self.settings.DISPATCHER_BATCH_SIZE)
+            .with_for_update(skip_locked=True)
+        )
+        items = list(session.scalars(stmt))
+
+        # В состоянии конвертации
+        for item in items:
+            item.status = UploadStatus.CONVERTING
+            item.convert_error_message = None
+
+        return items
+
+    def lock_batch_for_convert_by_plan_id(self, session: Session, plan_id: int) -> list[UploadPlanItem]:
         """Блокирует пачку готовых к конвертации записей и переводит их в CONVERTING."""
         stmt = (
             select(UploadPlanItem)

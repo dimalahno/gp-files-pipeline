@@ -56,13 +56,15 @@ class PlanItemProcessedDispatcher:
         2. Обрабатывает каждый план строго последовательно
         """
         with db_session(self.session_factory) as session:
-            # plans = self.plan_repository.find_converted_plans(session)
-            plans = self.plan_repository.find_converted_plan_by_id(session, 21)
+            # TODO временно для отладки, в проде отключим
+            # plans = self.plan_repository.find_converted_plan_by_id(session, 21)
+            plans = self.plan_repository.find_converted_plans(session)
             plan_ids = [plan.id for plan in plans]
 
         processed_count = 0
 
         for plan_id in plan_ids:
+            logger.info("Processing plan_id=%s", plan_id)
             try:
                 self.worker.process_processing(plan_id)
                 processed_count += 1

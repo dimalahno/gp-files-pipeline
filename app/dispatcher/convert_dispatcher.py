@@ -52,8 +52,10 @@ class PlanItemConvertDispatcher:
         """Выполняет одну итерацию: резервирует задачи и обрабатывает их параллельно."""
         with db_session(self.session_factory) as session:
             # TODO временно для отладки, в проде отключим
-            plan_id: int = 21
-            items = self.repository.lock_batch_for_convert(session, plan_id)
+            # plan_id: int = 22
+            # items = self.repository.lock_batch_for_convert_by_plan_id(session, plan_id)
+
+            items = self.repository.lock_batch_for_convert(session)
             ids = [item.id for item in items]
 
         futures: list[Future] = [self.pool.submit(self.worker.process_convert, item_id) for item_id in ids]
