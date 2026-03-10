@@ -62,3 +62,16 @@ docker run --rm -p 9001:9001 gp-files-pipeline
 - `POST /files/pipeline/dispatch/convert` — ручной запуск одного цикла диспетчера.
 
 - Проверка в браузере (swagger): http://localhost:9001/docs
+
+## Запуск локально контейнера 
+- Сборка: 
+```docker build -t gp-files-pipeline-service .```
+- Запуск:
+``` docker run -p 9001:9001 gp-files-pipeline-service```
+- Пересборка:
+``` docker build -t gp-files-pipeline-service .```
+- Остановить контейнер:
+```
+docker ps
+docker stop <container_id>
+```
